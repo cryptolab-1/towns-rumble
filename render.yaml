@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: towns-rumble-bot
+    buildCommand: curl -fsSL https://bun.sh/install | bash && export PATH="$HOME/.bun/bin:$PATH" && bun install
+    startCommand: ./start.sh
+    envVars:
+      - key: APP_PRIVATE_DATA
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: PORT
+        value: 5123
+      - key: TOWNS_TOKEN_ADDRESS
+        sync: false
+      - key: DATABASE_PATH
+        sync: false
+

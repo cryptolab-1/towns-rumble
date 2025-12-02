@@ -53,25 +53,55 @@ export function getTownsTokenAddress(): Address {
 }
 
 /**
- * Get TOWNS token balance for an address
+ * Get TOWNS token balance for an address using BaseScan API
  */
 export async function getTokenBalance(viem: any, address: Address): Promise<bigint> {
     try {
-        const balance = await readContract(viem, {
-            address: TOWNS_TOKEN_ADDRESS,
-            abi: ERC20_ABI,
-            functionName: 'balanceOf',
-            args: [address],
-        })
-        return balance as bigint
+        const apiKey = process.env.BASESCAN_API_KEY || ''
+        const url = `https://api.basescan.org/api?module=account&action=tokenbalance&contractaddress=${TOWNS_TOKEN_ADDRESS}&address=${address}&tag=latest${apiKey ? `&apikey=${apiKey}` : ''}`
+        
+        const response = await fetch(url)
+        const data = await response.json()
+        
+        if (data.status === '1' && data.result) {
+            return BigInt(data.result)
+        } else {
+            console.error('BaseScan API error:', data.message || 'Unknown error')
+            // Fallback to RPC if API fails
+            try {
+                const balance = await readContract(viem, {
+                    address: TOWNS_TOKEN_ADDRESS,
+                    abi: ERC20_ABI,
+                    functionName: 'balanceOf',
+                    args: [address],
+                })
+                return balance as bigint
+            } catch (rpcError) {
+                console.error('RPC fallback also failed:', rpcError)
+                return 0n
+            }
+        }
     } catch (error) {
-        console.error('Error getting token balance:', error)
-        throw error
+        console.error('Error getting token balance from BaseScan:', error)
+        // Fallback to RPC
+        try {
+            const balance = await readContract(viem, {
+                address: TOWNS_TOKEN_ADDRESS,
+                abi: ERC20_ABI,
+                functionName: 'balanceOf',
+                args: [address],
+            })
+            return balance as bigint
+        } catch (rpcError) {
+            console.error('RPC fallback also failed:', rpcError)
+            return 0n
+        }
     }
 }
 
 /**
  * Get allowance of TOWNS tokens that owner has approved for spender
+ * Uses RPC (allowance not available via BaseScan API)
  */
 export async function getTokenAllowance(
     viem: any,
@@ -86,9 +116,18 @@ export async function getTokenAllowance(
             args: [owner, spender],
         })
         return allowance as bigint
-    } catch (error) {
+    } catch (error: any) {
+        const isRateLimit = error?.message?.includes('rate limit') || 
+                           error?.message?.includes('over rate limit') ||
+                           error?.details?.includes('rate limit')
+        
+        if (isRateLimit) {
+            console.warn('RPC rate limit for allowance check. Returning 0. Please try again later.')
+            return 0n
+        }
+        
         console.error('Error getting token allowance:', error)
-        throw error
+        return 0n
     }
 }
 

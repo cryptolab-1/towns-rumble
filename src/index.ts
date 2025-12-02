@@ -217,17 +217,22 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
     // Already approved, check balance
     const { getTokenBalance } = await import('./token')
     const adminWalletForBalance = (await getSmartAccountFromUserId(bot, { userId })) as `0x${string}`
-    const adminBalance = await getTokenBalance(bot.viem, adminWalletForBalance)
     const requiredAmount = BigInt(rewardAmount)
     
     let balanceMessage = ''
-    if (adminBalance >= requiredAmount) {
-        balanceMessage = `✅ **Enough TOWNS in your wallet** (${formatTokenAmount(adminBalance)} TOWNS), you can launch the game!\n\n`
-    } else {
-        balanceMessage = `❌ **Not Enough TOWNS in your wallet to pay Rewards.**\n` +
-            `Required: ${formatTokenAmount(requiredAmount)} TOWNS\n` +
-            `Your Balance: ${formatTokenAmount(adminBalance)} TOWNS\n\n` +
-            `Fund it before launching the game!\n\n`
+    try {
+        const adminBalance = await getTokenBalance(bot.viem, adminWalletForBalance)
+        if (adminBalance >= requiredAmount) {
+            balanceMessage = `✅ **Enough TOWNS in your wallet** (${formatTokenAmount(adminBalance)} TOWNS), you can launch the game!\n\n`
+        } else {
+            balanceMessage = `❌ **Not Enough TOWNS in your wallet to pay Rewards.**\n` +
+                `Required: ${formatTokenAmount(requiredAmount)} TOWNS\n` +
+                `Your Balance: ${formatTokenAmount(adminBalance)} TOWNS\n\n` +
+                `Fund it before launching the game!\n\n`
+        }
+    } catch (error) {
+        console.error('Error checking balance:', error)
+        balanceMessage = `⚠️ **Unable to verify TOWNS balance** (RPC rate limit). Please ensure you have at least ${formatTokenAmount(requiredAmount)} TOWNS before launching.\n\n`
     }
     
     await handler.sendMessage(
@@ -416,10 +421,37 @@ bot.onInteractionResponse(async (handler, { response, channelId, userId }) => {
                         if (isApproved) {
                             // Check TOWNS balance
                             const { getTokenBalance, formatTokenAmount } = await import('./token')
-                            const adminBalance = await getTokenBalance(bot.viem, adminWallet)
                             const requiredAmount = BigInt(battle.rewardAmount || '0')
                             
-                            if (adminBalance >= requiredAmount) {
+                            try {
+                                const adminBalance = await getTokenBalance(bot.viem, adminWallet)
+                                
+                                if (adminBalance >= requiredAmount) {
+                                    battle.status = 'pending_tip'
+                                    const { setActiveBattle } = await import('./db')
+                                    setActiveBattle(battle)
+                                    
+                                    await handler.sendMessage(
+                                        channelId,
+                                        `✅ **Token Approval Confirmed!**\n\n` +
+                                        `Transaction: \`${txResponse.txHash}\`\n\n` +
+                                        `✅ **Enough TOWNS in your wallet** (${formatTokenAmount(adminBalance)} TOWNS), you can launch the game!\n\n` +
+                                        `You can now tip me **$1 USD worth of ETH** to launch the battle!`
+                                    )
+                                } else {
+                                    await handler.sendMessage(
+                                        channelId,
+                                        `✅ **Token Approval Confirmed!**\n\n` +
+                                        `Transaction: \`${txResponse.txHash}\`\n\n` +
+                                        `❌ **Not Enough TOWNS in your wallet to pay Rewards.**\n` +
+                                        `Required: ${formatTokenAmount(requiredAmount)} TOWNS\n` +
+                                        `Your Balance: ${formatTokenAmount(adminBalance)} TOWNS\n\n` +
+                                        `Fund it before launching the game!`
+                                    )
+                                }
+                            } catch (error) {
+                                console.error('Error checking balance after approval:', error)
+                                // Still allow battle to proceed, but warn user
                                 battle.status = 'pending_tip'
                                 const { setActiveBattle } = await import('./db')
                                 setActiveBattle(battle)
@@ -428,18 +460,8 @@ bot.onInteractionResponse(async (handler, { response, channelId, userId }) => {
                                     channelId,
                                     `✅ **Token Approval Confirmed!**\n\n` +
                                     `Transaction: \`${txResponse.txHash}\`\n\n` +
-                                    `✅ **Enough TOWNS in your wallet** (${formatTokenAmount(adminBalance)} TOWNS), you can launch the game!\n\n` +
+                                    `⚠️ **Unable to verify TOWNS balance** (RPC rate limit). Please ensure you have at least ${formatTokenAmount(requiredAmount)} TOWNS before launching.\n\n` +
                                     `You can now tip me **$1 USD worth of ETH** to launch the battle!`
-                                )
-                            } else {
-                                await handler.sendMessage(
-                                    channelId,
-                                    `✅ **Token Approval Confirmed!**\n\n` +
-                                    `Transaction: \`${txResponse.txHash}\`\n\n` +
-                                    `❌ **Not Enough TOWNS in your wallet to pay Rewards.**\n` +
-                                    `Required: ${formatTokenAmount(requiredAmount)} TOWNS\n` +
-                                    `Your Balance: ${formatTokenAmount(adminBalance)} TOWNS\n\n` +
-                                    `Fund it before launching the game!`
                                 )
                             }
                         } else {

@@ -140,35 +140,34 @@ export async function startBattleLoop(
         // Random number of fight events per round (1-4 events)
         const numEvents = Math.floor(Math.random() * 4) + 1
         const roundDescriptions: string[] = []
-        let eliminatedThisRound: string | null = null
-        let revivedThisRound: string | null = null
+        const eliminatedThisRound: string[] = []
+        const revivedThisRound: string[] = []
         
         for (let eventNum = 0; eventNum < numEvents; eventNum++) {
             // Check if we should have a revive event (10% chance per event, but only if there are eliminated players)
             const hasEliminated = eliminated.size > 0
-            const shouldRevive = hasEliminated && Math.random() < 0.1 && eventNum === numEvents - 1
+            const shouldRevive = hasEliminated && Math.random() < 0.1
             
-            if (shouldRevive && revivedThisRound === null) {
+            if (shouldRevive) {
                 // Revive event - bring back a random eliminated player
                 const eliminatedArray = Array.from(eliminated)
-                const revivedPlayer = eliminatedArray[Math.floor(Math.random() * eliminatedArray.length)]
-                eliminated.delete(revivedPlayer)
-                revivedThisRound = revivedPlayer
-                
-                // Track revive stat
-                incrementPlayerStat(revivedPlayer, 'revives')
-                
-                const reviveTemplate = reviveEvents[Math.floor(Math.random() * reviveEvents.length)]
-                const reviveDescription = reviveTemplate
-                    .replace('REVIVE:', '')
-                    .replace('{fighter1}', `<@${revivedPlayer}>`)
-                    .replace('{fighter2}', `<@${revivedPlayer}>`)
-                roundDescriptions.push(reviveDescription)
+                if (eliminatedArray.length > 0) {
+                    const revivedPlayer = eliminatedArray[Math.floor(Math.random() * eliminatedArray.length)]
+                    eliminated.delete(revivedPlayer)
+                    revivedThisRound.push(revivedPlayer)
+                    
+                    // Track revive stat
+                    incrementPlayerStat(revivedPlayer, 'revives')
+                    
+                    const reviveTemplate = reviveEvents[Math.floor(Math.random() * reviveEvents.length)]
+                    const reviveDescription = reviveTemplate
+                        .replace('REVIVE:', '')
+                        .replace('{fighter1}', `<@${revivedPlayer}>`)
+                        .replace('{fighter2}', `<@${revivedPlayer}>`)
+                    roundDescriptions.push(reviveDescription)
+                }
             } else {
                 // Regular fight event
-                if (activeParticipants.filter(p => !eliminated.has(p)).length < 2) break
-                
-                // Ensure we have at least 2 different fighters
                 const currentActive = participants.filter(p => !eliminated.has(p))
                 if (currentActive.length < 2) break
                 
@@ -190,32 +189,50 @@ export async function startBattleLoop(
                     .replace('{fighter2}', `<@${fighter2}>`)
                 roundDescriptions.push(fightDescription)
                 
-                // Randomly eliminate one fighter (50% chance each) - only on last event of round
-                if (eventNum === numEvents - 1 && !shouldRevive) {
-                    const killer = Math.random() < 0.5 ? fighter1 : fighter2
-                    const victim = killer === fighter1 ? fighter2 : fighter1
-                    eliminatedThisRound = victim
-                    eliminated.add(victim)
+                // Randomly eliminate one fighter (30% chance per fight event)
+                const shouldEliminate = Math.random() < 0.3
+                if (shouldEliminate && currentActive.length > 1) {
+                    const victim = Math.random() < 0.5 ? fighter1 : fighter2
+                    const killer = victim === fighter1 ? fighter2 : fighter1
                     
-                    // Track stats: killer gets a kill, victim gets a death
-                    incrementPlayerStat(killer, 'kills')
-                    incrementPlayerStat(victim, 'deaths')
+                    // Only eliminate if not already eliminated this round
+                    if (!eliminated.has(victim)) {
+                        eliminated.add(victim)
+                        eliminatedThisRound.push(victim)
+                        
+                        // Track stats: killer gets a kill, victim gets a death
+                        incrementPlayerStat(killer, 'kills')
+                        incrementPlayerStat(victim, 'deaths')
+                    }
                 }
             }
         }
         
-        // Track top 3 winners as participants are eliminated
-        const activeCount = participants.filter(p => !eliminated.has(p)).length
+        // Track top 3 winners as participants are eliminated (in order of elimination)
         const updatedBattle = getActiveBattle()
-        if (updatedBattle && updatedBattle.battleId === battleId && eliminatedThisRound) {
-            // When we go from 4 to 3 participants, the eliminated one is 4th place (not tracked)
-            // When we go from 3 to 2 participants, the eliminated one is 3rd place
-            if (activeCount === 2 && updatedBattle.winners.length === 0) {
-                updatedBattle.winners = [eliminatedThisRound] // 3rd place
+        if (updatedBattle && updatedBattle.battleId === battleId && eliminatedThisRound.length > 0) {
+            // Create a temporary set to track eliminations as we process them
+            const tempEliminated = new Set(eliminated)
+            // Remove the eliminations from this round to calculate counts correctly
+            for (const player of eliminatedThisRound) {
+                tempEliminated.delete(player)
             }
-            // When we go from 2 to 1 participant, the eliminated one is 2nd place
-            else if (activeCount === 1 && updatedBattle.winners.length === 1) {
-                updatedBattle.winners = [updatedBattle.winners[0], eliminatedThisRound] // [3rd, 2nd]
+            
+            // Process eliminations in order to determine winners
+            for (const eliminatedPlayer of eliminatedThisRound) {
+                // Calculate active count before this elimination
+                const activeCountBefore = participants.filter(p => !tempEliminated.has(p)).length
+                tempEliminated.add(eliminatedPlayer)
+                
+                // When we go from 4 to 3 participants, the eliminated one is 4th place (not tracked)
+                // When we go from 3 to 2 participants, the eliminated one is 3rd place
+                if (activeCountBefore === 3 && updatedBattle.winners.length === 0) {
+                    updatedBattle.winners = [eliminatedPlayer] // 3rd place
+                }
+                // When we go from 2 to 1 participant, the eliminated one is 2nd place
+                else if (activeCountBefore === 2 && updatedBattle.winners.length === 1) {
+                    updatedBattle.winners = [updatedBattle.winners[0], eliminatedPlayer] // [3rd, 2nd]
+                }
             }
         }
         
@@ -224,6 +241,9 @@ export async function startBattleLoop(
         if (updatedBattle2 && updatedBattle2.battleId === battleId) {
             updatedBattle2.currentRound = round
             updatedBattle2.eliminated = Array.from(eliminated)
+            if (updatedBattle && updatedBattle.winners.length > 0) {
+                updatedBattle2.winners = updatedBattle.winners
+            }
             setActiveBattle(updatedBattle2)
         }
         
@@ -231,11 +251,19 @@ export async function startBattleLoop(
         let roundMessage = `⚔️ **Round ${round}**\n\n`
         roundMessage += roundDescriptions.join('\n\n')
         
-        if (revivedThisRound) {
-            roundMessage += `\n\n✨ <@${revivedThisRound}> has been revived and rejoined the battle!`
+        if (revivedThisRound.length > 0) {
+            if (revivedThisRound.length === 1) {
+                roundMessage += `\n\n✨ <@${revivedThisRound[0]}> has been revived and rejoined the battle!`
+            } else {
+                roundMessage += `\n\n✨ **Revived:** ${revivedThisRound.map(id => `<@${id}>`).join(', ')}`
+            }
         }
-        if (eliminatedThisRound) {
-            roundMessage += `\n\n💀 <@${eliminatedThisRound}> has been eliminated!`
+        if (eliminatedThisRound.length > 0) {
+            if (eliminatedThisRound.length === 1) {
+                roundMessage += `\n\n💀 <@${eliminatedThisRound[0]}> has been eliminated!`
+            } else {
+                roundMessage += `\n\n💀 **Eliminated:** ${eliminatedThisRound.map(id => `<@${id}>`).join(', ')}`
+            }
         }
         
         // Send fight message

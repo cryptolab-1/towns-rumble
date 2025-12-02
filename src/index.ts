@@ -214,26 +214,8 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
         return
     }
     
-    // Already approved, check balance
-    const { getTokenBalance } = await import('./token')
-    const adminWalletForBalance = (await getSmartAccountFromUserId(bot, { userId })) as `0x${string}`
+    // Already approved, show warning
     const requiredAmount = BigInt(rewardAmount)
-    
-    let balanceMessage = ''
-    try {
-        const adminBalance = await getTokenBalance(bot.viem, adminWalletForBalance)
-        if (adminBalance >= requiredAmount) {
-            balanceMessage = `✅ **Enough TOWNS in your wallet** (${formatTokenAmount(adminBalance)} TOWNS), you can launch the game!\n\n`
-        } else {
-            balanceMessage = `❌ **Not Enough TOWNS in your wallet to pay Rewards.**\n` +
-                `Required: ${formatTokenAmount(requiredAmount)} TOWNS\n` +
-                `Your Balance: ${formatTokenAmount(adminBalance)} TOWNS\n\n` +
-                `Fund it before launching the game!\n\n`
-        }
-    } catch (error) {
-        console.error('Error checking balance:', error)
-        balanceMessage = `⚠️ **Unable to verify TOWNS balance** (RPC rate limit). Please ensure you have at least ${formatTokenAmount(requiredAmount)} TOWNS before launching.\n\n`
-    }
     
     await handler.sendMessage(
         channelId,
@@ -241,7 +223,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
         `${isPrivate ? '🔒 **Private Battle** - Only this town can join\n\n' : '🌐 **Public Battle** - Cross-town! Any town with the bot can join\n\n'}` +
         `React with ⚔️ to join the battle!\n` +
         `💰 **Reward Pool:** ${formatTokenAmount(requiredAmount)} TOWNS\n\n` +
-        `${balanceMessage}` +
+        `⚠️ **WARNING:** Be sure to have enough TOWNS before launching the Battle!\n\n` +
         `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
         `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
     )
@@ -419,51 +401,20 @@ bot.onInteractionResponse(async (handler, { response, channelId, userId }) => {
                         )
                         
                         if (isApproved) {
-                            // Check TOWNS balance
-                            const { getTokenBalance, formatTokenAmount } = await import('./token')
+                            const { formatTokenAmount } = await import('./token')
                             const requiredAmount = BigInt(battle.rewardAmount || '0')
                             
-                            try {
-                                const adminBalance = await getTokenBalance(bot.viem, adminWallet)
-                                
-                                if (adminBalance >= requiredAmount) {
-                                    battle.status = 'pending_tip'
-                                    const { setActiveBattle } = await import('./db')
-                                    setActiveBattle(battle)
-                                    
-                                    await handler.sendMessage(
-                                        channelId,
-                                        `✅ **Token Approval Confirmed!**\n\n` +
-                                        `Transaction: \`${txResponse.txHash}\`\n\n` +
-                                        `✅ **Enough TOWNS in your wallet** (${formatTokenAmount(adminBalance)} TOWNS), you can launch the game!\n\n` +
-                                        `You can now tip me **$1 USD worth of ETH** to launch the battle!`
-                                    )
-                                } else {
-                                    await handler.sendMessage(
-                                        channelId,
-                                        `✅ **Token Approval Confirmed!**\n\n` +
-                                        `Transaction: \`${txResponse.txHash}\`\n\n` +
-                                        `❌ **Not Enough TOWNS in your wallet to pay Rewards.**\n` +
-                                        `Required: ${formatTokenAmount(requiredAmount)} TOWNS\n` +
-                                        `Your Balance: ${formatTokenAmount(adminBalance)} TOWNS\n\n` +
-                                        `Fund it before launching the game!`
-                                    )
-                                }
-                            } catch (error) {
-                                console.error('Error checking balance after approval:', error)
-                                // Still allow battle to proceed, but warn user
-                                battle.status = 'pending_tip'
-                                const { setActiveBattle } = await import('./db')
-                                setActiveBattle(battle)
-                                
-                                await handler.sendMessage(
-                                    channelId,
-                                    `✅ **Token Approval Confirmed!**\n\n` +
-                                    `Transaction: \`${txResponse.txHash}\`\n\n` +
-                                    `⚠️ **Unable to verify TOWNS balance** (RPC rate limit). Please ensure you have at least ${formatTokenAmount(requiredAmount)} TOWNS before launching.\n\n` +
-                                    `You can now tip me **$1 USD worth of ETH** to launch the battle!`
-                                )
-                            }
+                            battle.status = 'pending_tip'
+                            const { setActiveBattle } = await import('./db')
+                            setActiveBattle(battle)
+                            
+                            await handler.sendMessage(
+                                channelId,
+                                `✅ **Token Approval Confirmed!**\n\n` +
+                                `Transaction: \`${txResponse.txHash}\`\n\n` +
+                                `⚠️ **WARNING:** Be sure to have enough TOWNS (${formatTokenAmount(requiredAmount)} TOWNS) before launching the Battle!\n\n` +
+                                `You can now tip me **$1 USD worth of ETH** to launch the battle!`
+                            )
                         } else {
                             await handler.sendMessage(
                                 channelId,

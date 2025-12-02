@@ -24,12 +24,22 @@ export interface BattleState {
     endedAt?: number
 }
 
+export interface PlayerStats {
+    userId: string
+    battles: number // Total battles participated
+    wins: number // Total wins (1st, 2nd, or 3rd place)
+    kills: number // Total eliminations
+    deaths: number // Total times eliminated
+    revives: number // Total times revived
+}
+
 interface BattleData {
     activeBattle?: BattleState
     pastBattles: BattleState[]
     fightEvents: string[]
     lastEthPrice?: number
     lastEthPriceTimestamp?: number
+    playerStats: Record<string, PlayerStats> // userId -> stats
 }
 
 const DEFAULT_FIGHT_EVENTS = [
@@ -102,13 +112,16 @@ function readDatabase(): BattleData {
             if (!parsed.pastBattles) {
                 parsed.pastBattles = []
             }
+            if (!parsed.playerStats) {
+                parsed.playerStats = {}
+            }
             return parsed
         } catch (error) {
             console.error('Error reading database:', error)
-            return { pastBattles: [], fightEvents: DEFAULT_FIGHT_EVENTS }
+            return { pastBattles: [], fightEvents: DEFAULT_FIGHT_EVENTS, playerStats: {} }
         }
     }
-    return { pastBattles: [], fightEvents: DEFAULT_FIGHT_EVENTS }
+    return { pastBattles: [], fightEvents: DEFAULT_FIGHT_EVENTS, playerStats: {} }
 }
 
 function writeDatabase(data: BattleData): void {
@@ -192,6 +205,75 @@ export function setLastEthPrice(price: number): void {
 export function getLastEthPrice(): number | undefined {
     const data = readDatabase()
     return data.lastEthPrice
+}
+
+/**
+ * Get or create player stats
+ */
+export function getPlayerStats(userId: string): PlayerStats {
+    const data = readDatabase()
+    if (!data.playerStats[userId]) {
+        data.playerStats[userId] = {
+            userId,
+            battles: 0,
+            wins: 0,
+            kills: 0,
+            deaths: 0,
+            revives: 0,
+        }
+        writeDatabase(data)
+    }
+    return data.playerStats[userId]
+}
+
+/**
+ * Update player stats
+ */
+export function updatePlayerStats(userId: string, updates: Partial<PlayerStats>): void {
+    const data = readDatabase()
+    if (!data.playerStats[userId]) {
+        data.playerStats[userId] = {
+            userId,
+            battles: 0,
+            wins: 0,
+            kills: 0,
+            deaths: 0,
+            revives: 0,
+        }
+    }
+    Object.assign(data.playerStats[userId], updates)
+    writeDatabase(data)
+}
+
+/**
+ * Increment a stat for a player
+ */
+export function incrementPlayerStat(userId: string, stat: 'battles' | 'wins' | 'kills' | 'deaths' | 'revives', amount: number = 1): void {
+    const data = readDatabase()
+    if (!data.playerStats[userId]) {
+        data.playerStats[userId] = {
+            userId,
+            battles: 0,
+            wins: 0,
+            kills: 0,
+            deaths: 0,
+            revives: 0,
+        }
+    }
+    data.playerStats[userId][stat] = (data.playerStats[userId][stat] || 0) + amount
+    writeDatabase(data)
+}
+
+/**
+ * Get all player stats sorted by a field
+ */
+export function getTopPlayers(sortBy: 'battles' | 'wins' | 'kills' | 'deaths' | 'revives', limit: number = 10): PlayerStats[] {
+    const data = readDatabase()
+    const stats = Object.values(data.playerStats)
+    return stats
+        .sort((a, b) => b[sortBy] - a[sortBy])
+        .slice(0, limit)
+        .filter(player => player[sortBy] > 0) // Only show players with stats > 0
 }
 
 // Initialize database on first load

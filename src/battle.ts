@@ -1,5 +1,5 @@
 import type { BotHandler } from '@towns-protocol/bot'
-import { getActiveBattle, setActiveBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents } from './db'
+import { getActiveBattle, setActiveBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, incrementPlayerStat } from './db'
 import { getTipAmountRange } from './ethPrice'
 
 const SWORD_EMOJI = '⚔️'
@@ -155,6 +155,9 @@ export async function startBattleLoop(
                 eliminated.delete(revivedPlayer)
                 revivedThisRound = revivedPlayer
                 
+                // Track revive stat
+                incrementPlayerStat(revivedPlayer, 'revives')
+                
                 const reviveTemplate = reviveEvents[Math.floor(Math.random() * reviveEvents.length)]
                 const reviveDescription = reviveTemplate
                     .replace('REVIVE:', '')
@@ -189,8 +192,14 @@ export async function startBattleLoop(
                 
                 // Randomly eliminate one fighter (50% chance each) - only on last event of round
                 if (eventNum === numEvents - 1 && !shouldRevive) {
-                    eliminatedThisRound = Math.random() < 0.5 ? fighter1 : fighter2
-                    eliminated.add(eliminatedThisRound)
+                    const killer = Math.random() < 0.5 ? fighter1 : fighter2
+                    const victim = killer === fighter1 ? fighter2 : fighter1
+                    eliminatedThisRound = victim
+                    eliminated.add(victim)
+                    
+                    // Track stats: killer gets a kill, victim gets a death
+                    incrementPlayerStat(killer, 'kills')
+                    incrementPlayerStat(victim, 'deaths')
                 }
             }
         }
@@ -243,6 +252,17 @@ export async function startBattleLoop(
         if (remaining.length >= 1) {
             // Add 1st place (last one standing)
             finalBattle.winners = [remaining[0], ...finalBattle.winners].slice(0, 3) // [1st, 2nd, 3rd]
+            
+            // Track stats for all participants
+            const allParticipants = finalBattle.participants
+            for (const participantId of allParticipants) {
+                incrementPlayerStat(participantId, 'battles')
+            }
+            
+            // Track wins for top 3
+            for (const winnerId of finalBattle.winners) {
+                incrementPlayerStat(winnerId, 'wins')
+            }
             
             finishBattle(finalBattle)
             

@@ -19,6 +19,10 @@ const commands = [
         name: 'test',
         description: 'Add 5 test players to current battle for testing (admin only)',
     },
+    {
+        name: 'leaderboard',
+        description: 'View the top 10 players leaderboard',
+    },
 ] as const satisfies PlainMessage<SlashCommand>[]
 
 export default commands

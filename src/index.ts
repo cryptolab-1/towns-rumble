@@ -628,6 +628,74 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
     }
 })
 
+bot.onSlashCommand('leaderboard', async (handler, { channelId }) => {
+    const { getTopPlayers } = await import('./db')
+    
+    const topPlayers = getTopPlayers('battles', 10)
+    const topWinners = getTopPlayers('wins', 10)
+    const topKills = getTopPlayers('kills', 10)
+    const topDeaths = getTopPlayers('deaths', 10)
+    const topRevives = getTopPlayers('revives', 10)
+    
+    let leaderboardText = '🏆 **RUMBLE LEADERBOARD** 🏆\n\n'
+    
+    // Top 10 Players (by battles)
+    leaderboardText += '📊 **Top 10 Players** (by battles)\n'
+    if (topPlayers.length > 0) {
+        topPlayers.forEach((player, index) => {
+            leaderboardText += `${index + 1}. <@${player.userId}> - ${player.battles} battles\n`
+        })
+    } else {
+        leaderboardText += 'No players yet.\n'
+    }
+    leaderboardText += '\n'
+    
+    // Top 10 Winners
+    leaderboardText += '🥇 **Top 10 Winners**\n'
+    if (topWinners.length > 0) {
+        topWinners.forEach((player, index) => {
+            leaderboardText += `${index + 1}. <@${player.userId}> - ${player.wins} wins\n`
+        })
+    } else {
+        leaderboardText += 'No winners yet.\n'
+    }
+    leaderboardText += '\n'
+    
+    // Top 10 Kills
+    leaderboardText += '⚔️ **Top 10 Kills**\n'
+    if (topKills.length > 0) {
+        topKills.forEach((player, index) => {
+            leaderboardText += `${index + 1}. <@${player.userId}> - ${player.kills} kills\n`
+        })
+    } else {
+        leaderboardText += 'No kills yet.\n'
+    }
+    leaderboardText += '\n'
+    
+    // Top 10 Deaths
+    leaderboardText += '💀 **Top 10 Deaths**\n'
+    if (topDeaths.length > 0) {
+        topDeaths.forEach((player, index) => {
+            leaderboardText += `${index + 1}. <@${player.userId}> - ${player.deaths} deaths\n`
+        })
+    } else {
+        leaderboardText += 'No deaths yet.\n'
+    }
+    leaderboardText += '\n'
+    
+    // Top 10 Revives
+    leaderboardText += '✨ **Top 10 Revives**\n'
+    if (topRevives.length > 0) {
+        topRevives.forEach((player, index) => {
+            leaderboardText += `${index + 1}. <@${player.userId}> - ${player.revives} revives\n`
+        })
+    } else {
+        leaderboardText += 'No revives yet.\n'
+    }
+    
+    await handler.sendMessage(channelId, leaderboardText)
+})
+
 bot.onMessage(async (handler, { message, channelId, eventId, createdAt }) => {
     if (message.includes('hello')) {
         await handler.sendMessage(channelId, 'Hello there! 👋')

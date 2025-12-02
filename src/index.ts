@@ -136,6 +136,67 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
     }
 })
 
+bot.onSlashCommand('cancel', async (handler, { channelId, spaceId, userId }) => {
+    // Check if user is admin
+    const isAdmin = await canStartBattle(handler, userId, spaceId)
+    if (!isAdmin) {
+        await handler.sendMessage(channelId, '❌ Only admins can cancel a battle!')
+        return
+    }
+
+    // Check if there's an active battle
+    const battle = getActiveBattle()
+    if (!battle) {
+        await handler.sendMessage(channelId, '❌ No active battle to cancel.')
+        return
+    }
+
+    // Check if battle is in the same channel
+    if (battle.channelId !== channelId) {
+        await handler.sendMessage(
+            channelId,
+            '❌ You can only cancel battles from the channel where they were started.'
+        )
+        return
+    }
+
+    // Check if user is the admin who started the battle
+    if (battle.adminId !== userId) {
+        await handler.sendMessage(
+            channelId,
+            '❌ Only the admin who started the battle can cancel it.'
+        )
+        return
+    }
+
+    // Check if battle has already started
+    if (battle.status === 'active' || battle.status === 'finished') {
+        await handler.sendMessage(
+            channelId,
+            '❌ Cannot cancel a battle that has already started or finished.'
+        )
+        return
+    }
+
+    // Cancel the battle
+    const { setActiveBattle } = await import('./db')
+    setActiveBattle(undefined)
+
+    const participantCount = battle.participants.length
+    const rewardInfo = battle.rewardAmount 
+        ? `\n💰 Reward pool of ${(await import('./token')).formatTokenAmount(BigInt(battle.rewardAmount))} TOWNS was not distributed.`
+        : ''
+
+    await handler.sendMessage(
+        channelId,
+        `❌ **BATTLE CANCELLED** ❌\n\n` +
+        `The battle has been cancelled by the admin.\n` +
+        `${participantCount > 0 ? `${participantCount} participant${participantCount > 1 ? 's were' : ' was'} removed from the battle.\n` : ''}` +
+        `${rewardInfo}\n` +
+        `You can start a new battle with \`/rumble\`.`
+    )
+})
+
 bot.onReaction(async (handler, { reaction, channelId, userId, spaceId }) => {
     // Handle sword emoji for battle participation
     if (reaction === '⚔️') {

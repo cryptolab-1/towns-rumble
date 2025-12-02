@@ -8,6 +8,10 @@ const commands = [
         description: 'Start a battle royale (admin only). Usage: /rumble [reward:AMOUNT] [private|public]',
     },
     {
+        name: 'cancel',
+        description: 'Cancel a battle that hasn\'t started yet (admin only)',
+    },
+    {
         name: 'time',
         description: 'Get the current time',
     },

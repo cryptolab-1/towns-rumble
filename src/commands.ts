@@ -16,6 +16,10 @@ const commands = [
         description: 'Cancel a battle that hasn\'t started yet (admin only)',
     },
     {
+        name: 'test',
+        description: 'Add 5 test players to current battle for testing (admin only)',
+    },
+    {
         name: 'time',
         description: 'Get the current time',
     },

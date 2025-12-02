@@ -14,7 +14,8 @@ export function initiateBattle(
     spaceId: string,
     adminId: string,
     rewardAmount?: string,
-    isPrivate: boolean = false
+    isPrivate: boolean = false,
+    isTest: boolean = false
 ): string {
     const battleId = `battle-${Date.now()}-${Math.random().toString(36).substring(7)}`
     const battle = {
@@ -32,6 +33,7 @@ export function initiateBattle(
         tipReceived: false,
         tipAmount: '0',
         isPrivate,
+        isTest,
         createdAt: Date.now(),
     }
     setActiveBattle(battle)
@@ -256,35 +258,45 @@ async function distributeRewards(bot: any, battle: any): Promise<void> {
     const adminWallet = await getSmartAccountFromUserId(bot, { userId: battle.adminId })
     const calls: Array<{ to: `0x${string}`; abi: typeof ERC20_ABI; functionName: 'transferFrom'; args: [`0x${string}`, `0x${string}`, bigint] }> = []
     
-    // Get wallet addresses for winners and create transferFrom calls
-    if (battle.winners.length >= 1) {
-        const firstPlaceWallet = await getSmartAccountFromUserId(bot, { userId: battle.winners[0] })
+    // For test battles, send all rewards to admin
+    if (battle.isTest) {
         calls.push({
             to: tokenAddress,
             abi: ERC20_ABI,
             functionName: 'transferFrom',
-            args: [adminWallet as `0x${string}`, firstPlaceWallet as `0x${string}`, firstPlaceReward],
+            args: [adminWallet as `0x${string}`, adminWallet as `0x${string}`, totalReward],
         })
-    }
-    
-    if (battle.winners.length >= 2) {
-        const secondPlaceWallet = await getSmartAccountFromUserId(bot, { userId: battle.winners[1] })
-        calls.push({
-            to: tokenAddress,
-            abi: ERC20_ABI,
-            functionName: 'transferFrom',
-            args: [adminWallet as `0x${string}`, secondPlaceWallet as `0x${string}`, secondPlaceReward],
-        })
-    }
-    
-    if (battle.winners.length >= 3) {
-        const thirdPlaceWallet = await getSmartAccountFromUserId(bot, { userId: battle.winners[2] })
-        calls.push({
-            to: tokenAddress,
-            abi: ERC20_ABI,
-            functionName: 'transferFrom',
-            args: [adminWallet as `0x${string}`, thirdPlaceWallet as `0x${string}`, thirdPlaceReward],
-        })
+    } else {
+        // Get wallet addresses for winners and create transferFrom calls
+        if (battle.winners.length >= 1) {
+            const firstPlaceWallet = await getSmartAccountFromUserId(bot, { userId: battle.winners[0] })
+            calls.push({
+                to: tokenAddress,
+                abi: ERC20_ABI,
+                functionName: 'transferFrom',
+                args: [adminWallet as `0x${string}`, firstPlaceWallet as `0x${string}`, firstPlaceReward],
+            })
+        }
+        
+        if (battle.winners.length >= 2) {
+            const secondPlaceWallet = await getSmartAccountFromUserId(bot, { userId: battle.winners[1] })
+            calls.push({
+                to: tokenAddress,
+                abi: ERC20_ABI,
+                functionName: 'transferFrom',
+                args: [adminWallet as `0x${string}`, secondPlaceWallet as `0x${string}`, secondPlaceReward],
+            })
+        }
+        
+        if (battle.winners.length >= 3) {
+            const thirdPlaceWallet = await getSmartAccountFromUserId(bot, { userId: battle.winners[2] })
+            calls.push({
+                to: tokenAddress,
+                abi: ERC20_ABI,
+                functionName: 'transferFrom',
+                args: [adminWallet as `0x${string}`, thirdPlaceWallet as `0x${string}`, thirdPlaceReward],
+            })
+        }
     }
     
     try {
@@ -297,14 +309,18 @@ async function distributeRewards(bot: any, battle: any): Promise<void> {
         
         // Build winner announcement
         let winnerText = ''
-        if (battle.winners.length >= 1) {
-            winnerText += `🥇 **1st Place:** <@${battle.winners[0]}> - ${formatTokenAmount(firstPlaceReward)} TOWNS (60%)\n`
-        }
-        if (battle.winners.length >= 2) {
-            winnerText += `🥈 **2nd Place:** <@${battle.winners[1]}> - ${formatTokenAmount(secondPlaceReward)} TOWNS (25%)\n`
-        }
-        if (battle.winners.length >= 3) {
-            winnerText += `🥉 **3rd Place:** <@${battle.winners[2]}> - ${formatTokenAmount(thirdPlaceReward)} TOWNS (15%)\n`
+        if (battle.isTest) {
+            winnerText += `🧪 **TEST BATTLE** - All rewards sent to admin: ${formatTokenAmount(totalReward)} TOWNS\n`
+        } else {
+            if (battle.winners.length >= 1) {
+                winnerText += `🥇 **1st Place:** <@${battle.winners[0]}> - ${formatTokenAmount(firstPlaceReward)} TOWNS (60%)\n`
+            }
+            if (battle.winners.length >= 2) {
+                winnerText += `🥈 **2nd Place:** <@${battle.winners[1]}> - ${formatTokenAmount(secondPlaceReward)} TOWNS (25%)\n`
+            }
+            if (battle.winners.length >= 3) {
+                winnerText += `🥉 **3rd Place:** <@${battle.winners[2]}> - ${formatTokenAmount(thirdPlaceReward)} TOWNS (15%)\n`
+            }
         }
         
         await bot.sendMessage(

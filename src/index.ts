@@ -53,6 +53,7 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
         `⚔️ **BATTLE ROYALE INITIATED!** ⚔️\n\n` +
         `${isPrivate ? '🔒 **Private Battle** - Only this town can join\n\n' : '🌐 **Public Battle** - Cross-town! Any town with the bot can join\n\n'}` +
         `React with ⚔️ to join the battle!\n\n` +
+        `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
         `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
     )
 
@@ -197,9 +198,10 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                 `${isPrivate ? '🔒 **Private Battle** - Only this town can join\n\n' : '🌐 **Public Battle** - Cross-town! Any town with the bot can join\n\n'}` +
                 `React with ⚔️ to join the battle!\n\n` +
                 `💰 **Reward Pool:** ${formatTokenAmount(requiredAmount)} TOWNS\n\n` +
-                `⚠️ **Token Approval Required**\n` +
-                `Please approve the transaction in the dialog above to allow the bot to distribute rewards.\n\n` +
-                `Once approved, tip me **$1 USD worth of ETH** to launch the battle!`
+                    `⚠️ **Token Approval Required**\n` +
+                    `Please approve the transaction in the dialog above to allow the bot to distribute rewards.\n\n` +
+                    `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
+                    `Once approved, tip me **$1 USD worth of ETH** to launch the battle!`
             )
             return
         }
@@ -219,6 +221,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
         `${isPrivate ? '🔒 **Private Battle** - Only this town can join\n\n' : '🌐 **Public Battle** - Cross-town! Any town with the bot can join\n\n'}` +
         `React with ⚔️ to join the battle!\n` +
         `💰 **Reward Pool:** ${formatTokenAmount(BigInt(rewardAmount))} TOWNS\n\n` +
+        `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
         `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
     )
 
@@ -289,6 +292,76 @@ bot.onSlashCommand('cancel', async (handler, { channelId, spaceId, userId }) => 
         `${participantCount > 0 ? `${participantCount} participant${participantCount > 1 ? 's were' : ' was'} removed from the battle.\n` : ''}` +
         `${rewardInfo}\n` +
         `You can start a new battle with \`/rumble\`.`
+    )
+})
+
+bot.onSlashCommand('test', async (handler, { channelId, spaceId, userId }) => {
+    // Check if user is admin
+    const isAdmin = await canStartBattle(handler, userId, spaceId)
+    if (!isAdmin) {
+        await handler.sendMessage(channelId, '❌ Only admins can use test mode!')
+        return
+    }
+
+    // Check if there's an active battle
+    const battle = getActiveBattle()
+    if (!battle) {
+        await handler.sendMessage(
+            channelId,
+            '❌ No active battle found. Start a battle with `/rumble` or `/rumble_reward` first.'
+        )
+        return
+    }
+
+    // Check if battle is in the same channel
+    if (battle.channelId !== channelId) {
+        await handler.sendMessage(
+            channelId,
+            '❌ You can only add test players to battles in this channel.'
+        )
+        return
+    }
+
+    // Check if user is the admin who started the battle
+    if (battle.adminId !== userId) {
+        await handler.sendMessage(
+            channelId,
+            '❌ Only the admin who started the battle can add test players.'
+        )
+        return
+    }
+
+    // Check if battle has already started
+    if (battle.status === 'active' || battle.status === 'finished') {
+        await handler.sendMessage(
+            channelId,
+            '❌ Cannot add test players to a battle that has already started or finished.'
+        )
+        return
+    }
+
+    // Generate 5 fake participant IDs (using pattern: test-{battleId}-{index})
+    const testParticipants: string[] = []
+    for (let i = 1; i <= 5; i++) {
+        const fakeUserId = `0x${battle.battleId.replace(/[^a-f0-9]/gi, '').substring(0, 38)}${i.toString().padStart(2, '0')}` as `0x${string}`
+        testParticipants.push(fakeUserId)
+    }
+
+    // Add test participants and ensure admin is included
+    const { setActiveBattle } = await import('./db')
+    const allParticipants = new Set([userId, ...battle.participants, ...testParticipants])
+    battle.participants = Array.from(allParticipants)
+    battle.isTest = true
+    setActiveBattle(battle)
+
+    await handler.sendMessage(
+        channelId,
+        `🧪 **TEST MODE ACTIVATED** 🧪\n\n` +
+        `Added **5 test players** to the battle!\n` +
+        `Current participants: **${battle.participants.length}** (including you)\n\n` +
+        `${battle.rewardAmount ? `💰 **Reward Pool:** ${(await import('./token')).formatTokenAmount(BigInt(battle.rewardAmount))} TOWNS\n` : ''}` +
+        `⚠️ **Note:** In test mode, all rewards will be sent to your address (admin).\n\n` +
+        `You can now tip **$1 USD worth of ETH** to launch the test battle!`
     )
 })
 

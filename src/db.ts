@@ -18,6 +18,7 @@ export interface BattleState {
     tipReceived: boolean
     tipAmount: string // Wei as string
     isPrivate: boolean // If true, only participants from the original space can join
+    isTest: boolean // If true, this is a test battle and rewards go to admin
     createdAt: number
     startedAt?: number
     endedAt?: number

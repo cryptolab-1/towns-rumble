@@ -65,7 +65,7 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
     }
 })
 
-bot.onSlashCommand('rumble-reward', async (handler, { channelId, spaceId, userId, args }) => {
+bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId, args }) => {
     // Check if user is admin
     const isAdmin = await canStartBattle(handler, userId, spaceId)
     if (!isAdmin) {
@@ -87,9 +87,9 @@ bot.onSlashCommand('rumble-reward', async (handler, { channelId, spaceId, userId
     if (!args || args.length === 0) {
         await handler.sendMessage(
             channelId,
-            `❌ **Usage:** \`/rumble-reward AMOUNT [private|public]\`\n\n` +
-            `Example: \`/rumble-reward 1000 private\`\n` +
-            `Example: \`/rumble-reward 5000 public\``
+            `❌ **Usage:** \`/rumble_reward AMOUNT [private|public]\`\n\n` +
+            `Example: \`/rumble_reward 1000 private\`\n` +
+            `Example: \`/rumble_reward 5000 public\``
         )
         return
     }
@@ -100,7 +100,7 @@ bot.onSlashCommand('rumble-reward', async (handler, { channelId, spaceId, userId
         await handler.sendMessage(
             channelId,
             `❌ Invalid reward amount. Please provide a valid number.\n\n` +
-            `Example: \`/rumble-reward 1000 private\``
+            `Example: \`/rumble_reward 1000 private\``
         )
         return
     }
@@ -355,7 +355,7 @@ bot.onInteractionResponse(async (handler, { response, channelId, userId }) => {
                     // Transaction was cancelled or failed
                     await handler.sendMessage(
                         channelId,
-                        `❌ Transaction was not completed. Please try again with \`/rumble-reward\`.`
+                        `❌ Transaction was not completed. Please try again with \`/rumble_reward\`.`
                     )
                 }
             }

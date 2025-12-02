@@ -8,8 +8,8 @@ const commands = [
         description: 'Start a battle royale without rewards (admin only). Usage: /rumble [private|public]',
     },
     {
-        name: 'rumble-reward',
-        description: 'Start a battle royale with TOWNS rewards (admin only). Usage: /rumble-reward AMOUNT [private|public]',
+        name: 'rumble_reward',
+        description: 'Start a battle royale with TOWNS rewards (admin only). Usage: /rumble_reward AMOUNT [private|public]',
     },
     {
         name: 'cancel',

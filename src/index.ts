@@ -31,22 +31,10 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
         return
     }
 
-    // Parse reward amount if provided (format: "reward:1000" or "r:1000")
-    let rewardAmount: string | undefined
-    let isPrivate = false
+    // Parse private/public flag (no rewards for regular rumble)
+    let isPrivate = true // Default to private
     
     if (args && args.length > 0) {
-        // Parse reward amount
-        const rewardArg = args.find(arg => arg.startsWith('reward:') || arg.startsWith('r:'))
-        if (rewardArg) {
-            const amount = rewardArg.split(':')[1]
-            if (amount && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0) {
-                const { parseTokenAmount } = await import('./token')
-                rewardAmount = parseTokenAmount(amount).toString()
-            }
-        }
-        
-        // Parse private/public flag
         const privateArg = args.find(arg => arg.toLowerCase() === 'private' || arg.toLowerCase() === 'p')
         const publicArg = args.find(arg => arg.toLowerCase() === 'public' || arg.toLowerCase() === 'pub')
         
@@ -55,75 +43,182 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
         } else if (publicArg) {
             isPrivate = false
         }
-        // Default to private if not specified
-        else {
-            isPrivate = true
-        }
-    } else {
-        // Default to private if no args
-        isPrivate = true
     }
 
-    // Initiate new battle
-    const battleId = initiateBattle(handler, channelId, spaceId, userId, rewardAmount, isPrivate)
-    
-    // If reward amount is set, check token approval
-    if (rewardAmount && BigInt(rewardAmount) > 0n) {
-        const { getSmartAccountFromUserId } = await import('@towns-protocol/bot')
-        const { checkTokenApproval, getTownsTokenAddress, formatTokenAmount } = await import('./token')
-        
-        try {
-            const adminWallet = (await getSmartAccountFromUserId(bot, { userId })) as `0x${string}`
-            const tokenAddress = getTownsTokenAddress()
-            const requiredAmount = BigInt(rewardAmount)
-            
-            const botAddress = bot.appAddress as `0x${string}`
-            const isApproved = await checkTokenApproval(
-                bot.viem,
-                adminWallet,
-                botAddress,
-                requiredAmount
-            )
-            
-            if (!isApproved) {
-                // Need approval
-                const battle = getActiveBattle()
-                if (battle && battle.battleId === battleId) {
-                    battle.status = 'pending_approval'
-                    const { setActiveBattle } = await import('./db')
-                    setActiveBattle(battle)
-                }
-                
-                await handler.sendMessage(
-                    channelId,
-                    `⚔️ **BATTLE ROYALE INITIATED!** ⚔️\n\n` +
-                    `${isPrivate ? '🔒 **Private Battle** - Only this town can join\n\n' : '🌐 **Public Battle** - Cross-town! Any town with the bot can join\n\n'}` +
-                    `React with ⚔️ to join the battle!\n\n` +
-                    `💰 **Reward Pool:** ${formatTokenAmount(BigInt(rewardAmount))} TOWNS\n\n` +
-                    `⚠️ **Token Approval Required**\n` +
-                    `Please approve the bot to spend ${formatTokenAmount(requiredAmount)} TOWNS tokens.\n` +
-                    `Token Contract: \`${tokenAddress}\`\n` +
-                    `Bot Address: \`${botAddress}\`\n\n` +
-                    `Once approved, tip me **$1 USD worth of ETH** to launch the battle!`
-                )
-                return
-            }
-        } catch (error) {
-            console.error('Error checking token approval:', error)
-            await handler.sendMessage(
-                channelId,
-                `❌ Error checking token approval. Please try again.`
-            )
-            return
-        }
-    }
+    // Initiate new battle without rewards
+    const battleId = initiateBattle(handler, channelId, spaceId, userId, undefined, isPrivate)
     
     await handler.sendMessage(
         channelId,
         `⚔️ **BATTLE ROYALE INITIATED!** ⚔️\n\n` +
         `${isPrivate ? '🔒 **Private Battle** - Only this town can join\n\n' : '🌐 **Public Battle** - Cross-town! Any town with the bot can join\n\n'}` +
+        `React with ⚔️ to join the battle!\n\n` +
+        `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
+    )
+
+    // Update battle status to pending tip
+    const battle = getActiveBattle()
+    if (battle && battle.battleId === battleId) {
+        battle.status = 'pending_tip'
+        const { setActiveBattle } = await import('./db')
+        setActiveBattle(battle)
+    }
+})
+
+bot.onSlashCommand('rumble-reward', async (handler, { channelId, spaceId, userId, args }) => {
+    // Check if user is admin
+    const isAdmin = await canStartBattle(handler, userId, spaceId)
+    if (!isAdmin) {
+        await handler.sendMessage(channelId, '❌ Only admins can start a battle!')
+        return
+    }
+
+    // Check if there's already an active battle
+    const activeBattle = getActiveBattle()
+    if (activeBattle && activeBattle.status !== 'finished') {
+        await handler.sendMessage(
+            channelId,
+            `⚔️ There's already an active battle in progress! Please wait for it to finish.`
+        )
+        return
+    }
+
+    // Parse reward amount (required for rumble-reward)
+    if (!args || args.length === 0) {
+        await handler.sendMessage(
+            channelId,
+            `❌ **Usage:** \`/rumble-reward AMOUNT [private|public]\`\n\n` +
+            `Example: \`/rumble-reward 1000 private\`\n` +
+            `Example: \`/rumble-reward 5000 public\``
+        )
+        return
+    }
+
+    // Parse reward amount (first argument should be the amount)
+    const rewardAmountStr = args[0]
+    if (!rewardAmountStr || isNaN(parseFloat(rewardAmountStr)) || parseFloat(rewardAmountStr) <= 0) {
+        await handler.sendMessage(
+            channelId,
+            `❌ Invalid reward amount. Please provide a valid number.\n\n` +
+            `Example: \`/rumble-reward 1000 private\``
+        )
+        return
+    }
+
+    const { parseTokenAmount } = await import('./token')
+    const rewardAmount = parseTokenAmount(rewardAmountStr).toString()
+
+    // Parse private/public flag
+    let isPrivate = true // Default to private
+    const privateArg = args.find(arg => arg.toLowerCase() === 'private' || arg.toLowerCase() === 'p')
+    const publicArg = args.find(arg => arg.toLowerCase() === 'public' || arg.toLowerCase() === 'pub')
+    
+    if (privateArg) {
+        isPrivate = true
+    } else if (publicArg) {
+        isPrivate = false
+    }
+
+    // Initiate new battle with rewards
+    const battleId = initiateBattle(handler, channelId, spaceId, userId, rewardAmount, isPrivate)
+    
+    // Check token approval and send transaction interaction if needed
+    const { getSmartAccountFromUserId } = await import('@towns-protocol/bot')
+    const { checkTokenApproval, getTownsTokenAddress, formatTokenAmount } = await import('./token')
+    const { encodeFunctionData } = await import('viem')
+    
+    try {
+        const adminWallet = (await getSmartAccountFromUserId(bot, { userId })) as `0x${string}`
+        const tokenAddress = getTownsTokenAddress()
+        const requiredAmount = BigInt(rewardAmount)
+        const botAddress = bot.appAddress as `0x${string}`
+        
+        const isApproved = await checkTokenApproval(
+            bot.viem,
+            adminWallet,
+            botAddress,
+            requiredAmount
+        )
+        
+        if (!isApproved) {
+            // Need approval - send transaction interaction request
+            const battle = getActiveBattle()
+            if (battle && battle.battleId === battleId) {
+                battle.status = 'pending_approval'
+                const { setActiveBattle } = await import('./db')
+                setActiveBattle(battle)
+            }
+
+            // Encode approve function call
+            const approveData = encodeFunctionData({
+                abi: [
+                    {
+                        name: 'approve',
+                        type: 'function',
+                        stateMutability: 'nonpayable',
+                        inputs: [
+                            { name: 'spender', type: 'address' },
+                            { name: 'amount', type: 'uint256' },
+                        ],
+                        outputs: [{ name: '', type: 'bool' }],
+                    },
+                ],
+                functionName: 'approve',
+                args: [botAddress, requiredAmount],
+            })
+
+            // Send transaction interaction request
+            const { hexToBytes } = await import('viem')
+            await handler.sendInteractionRequest(
+                channelId,
+                {
+                    case: 'transaction',
+                    value: {
+                        id: `approve-${battleId}`,
+                        title: `Approve ${formatTokenAmount(requiredAmount)} TOWNS`,
+                        content: {
+                            case: 'evm',
+                            value: {
+                                chainId: '8453', // Base network
+                                to: tokenAddress,
+                                value: '0',
+                                data: approveData,
+                                signerWallet: undefined,
+                            },
+                        },
+                    },
+                },
+                hexToBytes(userId as `0x${string}`)
+            )
+
+            await handler.sendMessage(
+                channelId,
+                `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
+                `${isPrivate ? '🔒 **Private Battle** - Only this town can join\n\n' : '🌐 **Public Battle** - Cross-town! Any town with the bot can join\n\n'}` +
+                `React with ⚔️ to join the battle!\n\n` +
+                `💰 **Reward Pool:** ${formatTokenAmount(requiredAmount)} TOWNS\n\n` +
+                `⚠️ **Token Approval Required**\n` +
+                `Please approve the transaction in the dialog above to allow the bot to distribute rewards.\n\n` +
+                `Once approved, tip me **$1 USD worth of ETH** to launch the battle!`
+            )
+            return
+        }
+    } catch (error) {
+        console.error('Error checking token approval:', error)
+        await handler.sendMessage(
+            channelId,
+            `❌ Error checking token approval. Please try again.`
+        )
+        return
+    }
+    
+    // Already approved, proceed normally
+    await handler.sendMessage(
+        channelId,
+        `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
+        `${isPrivate ? '🔒 **Private Battle** - Only this town can join\n\n' : '🌐 **Public Battle** - Cross-town! Any town with the bot can join\n\n'}` +
         `React with ⚔️ to join the battle!\n` +
-        (rewardAmount ? `💰 **Reward Pool:** ${(await import('./token')).formatTokenAmount(BigInt(rewardAmount))} TOWNS\n\n` : '') +
+        `💰 **Reward Pool:** ${formatTokenAmount(BigInt(rewardAmount))} TOWNS\n\n` +
         `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
     )
 
@@ -195,6 +290,77 @@ bot.onSlashCommand('cancel', async (handler, { channelId, spaceId, userId }) => 
         `${rewardInfo}\n` +
         `You can start a new battle with \`/rumble\`.`
     )
+})
+
+bot.onInteractionResponse(async (handler, { response, channelId, userId }) => {
+    // Handle token approval transaction response
+    if (response.payload.content?.case === 'transaction') {
+        const txResponse = response.payload.content.value
+        
+        // Check if this is an approval transaction
+        if (txResponse.requestId?.startsWith('approve-')) {
+            const battleId = txResponse.requestId.replace('approve-', '')
+            const battle = getActiveBattle()
+            
+            if (battle && battle.battleId === battleId && battle.adminId === userId) {
+                // Check if transaction was successful
+                if (txResponse.txHash) {
+                    // Transaction was submitted, check approval status
+                    const { getSmartAccountFromUserId } = await import('@towns-protocol/bot')
+                    const { checkTokenApproval } = await import('./token')
+                    
+                    try {
+                        const adminWallet = (await getSmartAccountFromUserId(bot, { userId })) as `0x${string}`
+                        const requiredAmount = BigInt(battle.rewardAmount || '0')
+                        const botAddress = bot.appAddress as `0x${string}`
+                        
+                        // Wait a bit for transaction to be mined
+                        await new Promise(resolve => setTimeout(resolve, 3000))
+                        
+                        const isApproved = await checkTokenApproval(
+                            bot.viem,
+                            adminWallet,
+                            botAddress,
+                            requiredAmount
+                        )
+                        
+                        if (isApproved) {
+                            battle.status = 'pending_tip'
+                            const { setActiveBattle } = await import('./db')
+                            setActiveBattle(battle)
+                            
+                            await handler.sendMessage(
+                                channelId,
+                                `✅ **Token Approval Confirmed!**\n\n` +
+                                `Transaction: \`${txResponse.txHash}\`\n\n` +
+                                `You can now tip me **$1 USD worth of ETH** to launch the battle!`
+                            )
+                        } else {
+                            await handler.sendMessage(
+                                channelId,
+                                `⏳ **Transaction Submitted**\n\n` +
+                                `Transaction: \`${txResponse.txHash}\`\n\n` +
+                                `Waiting for confirmation... Please wait a moment and try tipping again.`
+                            )
+                        }
+                    } catch (error) {
+                        console.error('Error verifying approval after transaction:', error)
+                        await handler.sendMessage(
+                            channelId,
+                            `⚠️ Transaction submitted: \`${txResponse.txHash}\`\n\n` +
+                            `Please wait for confirmation, then tip **$1 USD worth of ETH** to launch the battle.`
+                        )
+                    }
+                } else {
+                    // Transaction was cancelled or failed
+                    await handler.sendMessage(
+                        channelId,
+                        `❌ Transaction was not completed. Please try again with \`/rumble-reward\`.`
+                    )
+                }
+            }
+        }
+    }
 })
 
 bot.onReaction(async (handler, { reaction, channelId, userId, spaceId }) => {

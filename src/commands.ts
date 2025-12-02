@@ -5,7 +5,11 @@ import type { PlainMessage, SlashCommand } from '@towns-protocol/proto'
 const commands = [
     {
         name: 'rumble',
-        description: 'Start a battle royale (admin only). Usage: /rumble [reward:AMOUNT] [private|public]',
+        description: 'Start a battle royale without rewards (admin only). Usage: /rumble [private|public]',
+    },
+    {
+        name: 'rumble-reward',
+        description: 'Start a battle royale with TOWNS rewards (admin only). Usage: /rumble-reward AMOUNT [private|public]',
     },
     {
         name: 'cancel',

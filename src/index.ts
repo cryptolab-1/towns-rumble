@@ -5,21 +5,6 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
     commands,
 })
 
-bot.onSlashCommand('help', async (handler, { channelId }) => {
-    await handler.sendMessage(
-        channelId,
-        '**Available Commands:**\n\n' +
-            '• `/help` - Show this help message\n' +
-            '• `/time` - Get the current time\n\n' +
-            '**Message Triggers:**\n\n' +
-            "• Mention me - I'll respond\n" +
-            "• React with 👋 - I'll wave back" +
-            '• Say "hello" - I\'ll greet you back\n' +
-            '• Say "ping" - I\'ll show latency\n' +
-            '• Say "react" - I\'ll add a reaction\n',
-    )
-})
-
 bot.onSlashCommand('time', async (handler, { channelId }) => {
     const currentTime = new Date().toLocaleString()
     await handler.sendMessage(channelId, `Current time: ${currentTime} ⏰`)

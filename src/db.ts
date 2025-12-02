@@ -33,6 +33,7 @@ interface BattleData {
 }
 
 const DEFAULT_FIGHT_EVENTS = [
+    // Regular fight events (40 total)
     '{fighter1} lunges at {fighter2} with a swift strike!',
     '{fighter1} dodges {fighter2}\'s attack and counters with a powerful blow!',
     '{fighter1} and {fighter2} clash swords in a fierce exchange!',
@@ -45,6 +46,48 @@ const DEFAULT_FIGHT_EVENTS = [
     '{fighter2} evades {fighter1}\'s attack and strikes back!',
     '{fighter1} unleashes a powerful finisher on {fighter2}!',
     '{fighter1} and {fighter2} trade blows in rapid succession!',
+    '{fighter1} performs a backflip and lands a kick on {fighter2}!',
+    '{fighter2} sidesteps {fighter1}\'s charge and delivers a roundhouse!',
+    '{fighter1} throws a series of jabs at {fighter2}!',
+    '{fighter2} catches {fighter1}\'s arm and executes a throw!',
+    '{fighter1} leaps into the air and comes down with a powerful strike!',
+    '{fighter2} uses a defensive stance and counters {fighter1}\'s advance!',
+    '{fighter1} feints left then strikes right, catching {fighter2} off guard!',
+    '{fighter2} blocks with a shield and pushes {fighter1} back!',
+    '{fighter1} channels energy and releases a shockwave at {fighter2}!',
+    '{fighter2} rolls under {fighter1}\'s attack and sweeps their legs!',
+    '{fighter1} uses a whirlwind technique against {fighter2}!',
+    '{fighter2} deflects {fighter1}\'s blade with precision!',
+    '{fighter1} performs a triple strike combo on {fighter2}!',
+    '{fighter2} uses a counter-attack technique on {fighter1}!',
+    '{fighter1} charges forward with a battle cry!',
+    '{fighter2} meets {fighter1}\'s charge head-on with equal force!',
+    '{fighter1} uses a feint to create an opening!',
+    '{fighter2} reads {fighter1}\'s movements and anticipates the attack!',
+    '{fighter1} unleashes a flurry of strikes!',
+    '{fighter2} weaves through {fighter1}\'s attacks with agility!',
+    '{fighter1} delivers a crushing overhead strike!',
+    '{fighter2} deflects the blow and spins into a counter!',
+    '{fighter1} uses a grappling technique on {fighter2}!',
+    '{fighter2} breaks free and creates distance!',
+    '{fighter1} throws a smoke bomb and strikes from the shadows!',
+    '{fighter2} clears the smoke and finds {fighter1}!',
+    '{fighter1} performs a spinning kick that connects!',
+    '{fighter2} recovers quickly and launches a counter-offensive!',
+    '{fighter1} uses a combination of strikes and kicks!',
+    '{fighter2} blocks and parries with expert timing!',
+    
+    // Revive events (10 total)
+    'REVIVE:{fighter1} finds a healing potion and is revived back into the battle!',
+    'REVIVE:{fighter2} gets back up with renewed determination!',
+    'REVIVE:{fighter1} is resurrected by a mysterious force!',
+    'REVIVE:{fighter2} refuses to stay down and rejoins the fight!',
+    'REVIVE:{fighter1} uses a phoenix down and returns to battle!',
+    'REVIVE:{fighter2} is healed by a passing medic and continues fighting!',
+    'REVIVE:{fighter1} finds inner strength and gets back up!',
+    'REVIVE:{fighter2} is saved by a guardian angel and rejoins!',
+    'REVIVE:{fighter1} uses a second wind ability to return!',
+    'REVIVE:{fighter2} regenerates and comes back stronger!',
 ]
 
 function readDatabase(): BattleData {
@@ -119,6 +162,16 @@ export function addParticipant(battleId: string, userId: string): boolean {
 export function getFightEvents(): string[] {
     const data = readDatabase()
     return data.fightEvents
+}
+
+export function getRegularFightEvents(): string[] {
+    const data = readDatabase()
+    return data.fightEvents.filter(event => !event.startsWith('REVIVE:'))
+}
+
+export function getReviveEvents(): string[] {
+    const data = readDatabase()
+    return data.fightEvents.filter(event => event.startsWith('REVIVE:'))
 }
 
 export function addFightEvent(event: string): void {

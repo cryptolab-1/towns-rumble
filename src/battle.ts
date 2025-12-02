@@ -1,5 +1,5 @@
 import type { BotHandler } from '@towns-protocol/bot'
-import { getActiveBattle, setActiveBattle, finishBattle, addParticipant, getFightEvents } from './db'
+import { getActiveBattle, setActiveBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents } from './db'
 import { getTipAmountRange } from './ethPrice'
 
 const SWORD_EMOJI = '⚔️'
@@ -118,7 +118,8 @@ export async function startBattleLoop(
     const eliminated = new Set(battle.eliminated)
     let round = battle.currentRound
     
-    const fightEvents = getFightEvents()
+    const regularEvents = getRegularFightEvents()
+    const reviveEvents = getReviveEvents()
     
     while (true) {
         // Wait 10 seconds
@@ -134,44 +135,80 @@ export async function startBattleLoop(
         const activeParticipants = participants.filter(p => !eliminated.has(p))
         if (activeParticipants.length < 2) break
         
-        // Ensure we have at least 2 different fighters
-        let fighter1Index = Math.floor(Math.random() * activeParticipants.length)
-        let fighter2Index = Math.floor(Math.random() * activeParticipants.length)
+        round++
         
-        // Make sure they're different
-        while (fighter2Index === fighter1Index && activeParticipants.length > 1) {
-            fighter2Index = Math.floor(Math.random() * activeParticipants.length)
+        // Random number of fight events per round (1-4 events)
+        const numEvents = Math.floor(Math.random() * 4) + 1
+        const roundDescriptions: string[] = []
+        let eliminatedThisRound: string | null = null
+        let revivedThisRound: string | null = null
+        
+        for (let eventNum = 0; eventNum < numEvents; eventNum++) {
+            // Check if we should have a revive event (10% chance per event, but only if there are eliminated players)
+            const hasEliminated = eliminated.size > 0
+            const shouldRevive = hasEliminated && Math.random() < 0.1 && eventNum === numEvents - 1
+            
+            if (shouldRevive && revivedThisRound === null) {
+                // Revive event - bring back a random eliminated player
+                const eliminatedArray = Array.from(eliminated)
+                const revivedPlayer = eliminatedArray[Math.floor(Math.random() * eliminatedArray.length)]
+                eliminated.delete(revivedPlayer)
+                revivedThisRound = revivedPlayer
+                
+                const reviveTemplate = reviveEvents[Math.floor(Math.random() * reviveEvents.length)]
+                const reviveDescription = reviveTemplate
+                    .replace('REVIVE:', '')
+                    .replace('{fighter1}', `<@${revivedPlayer}>`)
+                    .replace('{fighter2}', `<@${revivedPlayer}>`)
+                roundDescriptions.push(reviveDescription)
+            } else {
+                // Regular fight event
+                if (activeParticipants.filter(p => !eliminated.has(p)).length < 2) break
+                
+                // Ensure we have at least 2 different fighters
+                const currentActive = participants.filter(p => !eliminated.has(p))
+                if (currentActive.length < 2) break
+                
+                let fighter1Index = Math.floor(Math.random() * currentActive.length)
+                let fighter2Index = Math.floor(Math.random() * currentActive.length)
+                
+                // Make sure they're different
+                while (fighter2Index === fighter1Index && currentActive.length > 1) {
+                    fighter2Index = Math.floor(Math.random() * currentActive.length)
+                }
+                
+                const fighter1 = currentActive[fighter1Index]
+                const fighter2 = currentActive[fighter2Index]
+                
+                // Get random regular fight event
+                const eventTemplate = regularEvents[Math.floor(Math.random() * regularEvents.length)]
+                const fightDescription = eventTemplate
+                    .replace('{fighter1}', `<@${fighter1}>`)
+                    .replace('{fighter2}', `<@${fighter2}>`)
+                roundDescriptions.push(fightDescription)
+                
+                // Randomly eliminate one fighter (50% chance each) - only on last event of round
+                if (eventNum === numEvents - 1 && !shouldRevive) {
+                    eliminatedThisRound = Math.random() < 0.5 ? fighter1 : fighter2
+                    eliminated.add(eliminatedThisRound)
+                }
+            }
         }
         
-        const fighter1 = activeParticipants[fighter1Index]
-        const fighter2 = activeParticipants[fighter2Index]
-        
-        // Get random fight event
-        const eventTemplate = fightEvents[Math.floor(Math.random() * fightEvents.length)]
-        const fightDescription = eventTemplate
-            .replace('{fighter1}', `<@${fighter1}>`)
-            .replace('{fighter2}', `<@${fighter2}>`)
-        
-        // Randomly eliminate one fighter (50% chance each)
-        const eliminatedFighter = Math.random() < 0.5 ? fighter1 : fighter2
-        eliminated.add(eliminatedFighter)
-        
         // Track top 3 winners as participants are eliminated
-        const activeCount = activeParticipants.filter(p => !eliminated.has(p)).length
+        const activeCount = participants.filter(p => !eliminated.has(p)).length
         const updatedBattle = getActiveBattle()
-        if (updatedBattle && updatedBattle.battleId === battleId) {
+        if (updatedBattle && updatedBattle.battleId === battleId && eliminatedThisRound) {
             // When we go from 4 to 3 participants, the eliminated one is 4th place (not tracked)
             // When we go from 3 to 2 participants, the eliminated one is 3rd place
             if (activeCount === 2 && updatedBattle.winners.length === 0) {
-                updatedBattle.winners = [eliminatedFighter] // 3rd place
+                updatedBattle.winners = [eliminatedThisRound] // 3rd place
             }
             // When we go from 2 to 1 participant, the eliminated one is 2nd place
             else if (activeCount === 1 && updatedBattle.winners.length === 1) {
-                updatedBattle.winners = [updatedBattle.winners[0], eliminatedFighter] // [3rd, 2nd]
+                updatedBattle.winners = [updatedBattle.winners[0], eliminatedThisRound] // [3rd, 2nd]
             }
         }
-        
-        round++
         
         // Update battle state
         const updatedBattle2 = getActiveBattle()
@@ -181,10 +218,21 @@ export async function startBattleLoop(
             setActiveBattle(updatedBattle2)
         }
         
-        // Send fight message
-        await bot.sendMessage(battle.channelId, `⚔️ **Round ${round}**\n\n${fightDescription}\n\n<@${eliminatedFighter}> has been eliminated!`)
+        // Build round message
+        let roundMessage = `⚔️ **Round ${round}**\n\n`
+        roundMessage += roundDescriptions.join('\n\n')
         
-        participants = activeParticipants.filter(p => !eliminated.has(p))
+        if (revivedThisRound) {
+            roundMessage += `\n\n✨ <@${revivedThisRound}> has been revived and rejoined the battle!`
+        }
+        if (eliminatedThisRound) {
+            roundMessage += `\n\n💀 <@${eliminatedThisRound}> has been eliminated!`
+        }
+        
+        // Send fight message
+        await bot.sendMessage(battle.channelId, roundMessage)
+        
+        participants = participants.filter(p => !eliminated.has(p))
     }
     
     // Determine winners (top 3)

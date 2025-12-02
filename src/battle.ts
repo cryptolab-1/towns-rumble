@@ -219,19 +219,25 @@ export async function startBattleLoop(
             }
             
             // Process eliminations in order to determine winners
+            // We track the last 2 eliminations (2nd and 3rd place) in chronological order
             for (const eliminatedPlayer of eliminatedThisRound) {
                 // Calculate active count before this elimination
                 const activeCountBefore = participants.filter(p => !tempEliminated.has(p)).length
                 tempEliminated.add(eliminatedPlayer)
                 
-                // When we go from 4 to 3 participants, the eliminated one is 4th place (not tracked)
                 // When we go from 3 to 2 participants, the eliminated one is 3rd place
-                if (activeCountBefore === 3 && updatedBattle.winners.length === 0) {
-                    updatedBattle.winners = [eliminatedPlayer] // 3rd place
+                if (activeCountBefore === 3) {
+                    // If we already have a 3rd place, shift it out (it becomes 4th or lower)
+                    updatedBattle.winners = [eliminatedPlayer] // New 3rd place
                 }
                 // When we go from 2 to 1 participant, the eliminated one is 2nd place
-                else if (activeCountBefore === 2 && updatedBattle.winners.length === 1) {
-                    updatedBattle.winners = [updatedBattle.winners[0], eliminatedPlayer] // [3rd, 2nd]
+                else if (activeCountBefore === 2) {
+                    // Keep 3rd place if it exists, add 2nd place
+                    if (updatedBattle.winners.length === 0) {
+                        updatedBattle.winners = [eliminatedPlayer] // 2nd place (no 3rd tracked yet)
+                    } else {
+                        updatedBattle.winners = [updatedBattle.winners[0], eliminatedPlayer] // [3rd, 2nd]
+                    }
                 }
             }
         }
@@ -278,8 +284,10 @@ export async function startBattleLoop(
         const remaining = participants.filter(p => !eliminated.has(p))
         
         if (remaining.length >= 1) {
-            // Add 1st place (last one standing)
-            finalBattle.winners = [remaining[0], ...finalBattle.winners].slice(0, 3) // [1st, 2nd, 3rd]
+            // Winners array is built as [3rd, 2nd] during battle, reverse it to get [2nd, 3rd]
+            // Then prepend 1st place to get [1st, 2nd, 3rd]
+            const reversedWinners = [...finalBattle.winners].reverse()
+            finalBattle.winners = [remaining[0], ...reversedWinners].slice(0, 3) // [1st, 2nd, 3rd]
             
             // Track stats for all participants
             const allParticipants = finalBattle.participants

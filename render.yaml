@@ -13,5 +13,5 @@ services:
       - key: TOWNS_TOKEN_ADDRESS
         sync: false
       - key: DATABASE_PATH
-        sync: false
+        value: /tmp/battle.json
 

@@ -7,7 +7,7 @@ import {
     handleTip,
     startBattleLoop,
 } from './battle'
-import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActivePublicBattle, setActivePrivateBattle, trackChannelForPublicBattles, getPublicBattleChannels } from './db'
+import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActivePublicBattle, setActivePrivateBattle, trackChannelForPublicBattles, getPublicBattleChannels, type BattleState } from './db'
 
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,

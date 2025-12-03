@@ -546,6 +546,84 @@ bot.onSlashCommand('test', async (handler, { channelId, spaceId, userId }) => {
     )
 })
 
+bot.onSlashCommand('test2', async (handler, { channelId, spaceId, userId }) => {
+    // Track channel for public battle announcements
+    trackChannelForPublicBattles(channelId, spaceId)
+    
+    // Check if there's an active battle (public or private)
+    // For public battles, allow from any town
+    // For private battles, only allow from the same town
+    let battle = getActivePublicBattle()
+    if (!battle) {
+        battle = getActivePrivateBattle(spaceId || '')
+    }
+    if (!battle) {
+        battle = getActiveBattle()
+    }
+    
+    if (!battle) {
+        await handler.sendMessage(
+            channelId,
+            '❌ No active battle found. Start a battle with `/rumble` or `/rumble_reward` first.'
+        )
+        return
+    }
+
+    // For private battles, check if it's from the same town
+    if (battle.isPrivate) {
+        if (battle.spaceId !== spaceId) {
+            await handler.sendMessage(
+                channelId,
+                '❌ This is a private battle. You can only add test players from the town where it was started.'
+            )
+            return
+        }
+    }
+
+    // Check if battle has already started
+    if (battle.status === 'active' || battle.status === 'finished') {
+        await handler.sendMessage(
+            channelId,
+            '❌ Cannot add test players to a battle that has already started or finished.'
+        )
+        return
+    }
+
+    // Generate 5 fake participant IDs (excluding admin)
+    // Use a different pattern to avoid conflicts with test command
+    const testParticipants: string[] = []
+    for (let i = 1; i <= 5; i++) {
+        // Generate unique fake user IDs based on battleId and index
+        const fakeUserId = `0x${battle.battleId.replace(/[^a-f0-9]/gi, '').substring(0, 36)}${i.toString().padStart(2, '0')}2` as `0x${string}`
+        testParticipants.push(fakeUserId)
+    }
+
+    // Add test participants (excluding admin - don't add userId)
+    // Use addParticipant to ensure duplicates are handled correctly
+    const { addParticipant, setActivePublicBattle, setActivePrivateBattle } = await import('./db')
+    let addedCount = 0
+    for (const fakeUserId of testParticipants) {
+        if (addParticipant(battle.battleId, fakeUserId)) {
+            addedCount++
+        }
+    }
+
+    // Get fresh battle state to get accurate count
+    const freshBattle = battle.isPrivate 
+        ? getActivePrivateBattle(spaceId || '')
+        : getActivePublicBattle()
+    const finalBattle = freshBattle || battle
+
+    await handler.sendMessage(
+        channelId,
+        `🧪 **TEST2 MODE** 🧪\n\n` +
+        `Added **${addedCount} fake users** to the battle!\n` +
+        `Current participants: **${finalBattle.participants.length}**\n\n` +
+        `⚠️ **Note:** These are fake users for testing purposes only.\n\n` +
+        `You can now tip **$1 USD worth of ETH** to launch the battle!`
+    )
+})
+
 bot.onInteractionResponse(async (handler, { response, channelId, userId }) => {
     // Handle token approval transaction response
     if (response.payload.content?.case === 'transaction') {

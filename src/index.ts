@@ -699,28 +699,55 @@ bot.onInteractionResponse(async (handler, { response, channelId, userId }) => {
     }
 })
 
-bot.onReaction(async (handler, { reaction, channelId, userId, spaceId }) => {
+bot.onReaction(async (handler, { reaction, channelId, userId, spaceId, messageId }) => {
     // Track channel for public battle announcements
     trackChannelForPublicBattles(channelId, spaceId)
     
-    console.log(`[onReaction] Reaction received: ${reaction}, channelId: ${channelId}, userId: ${userId}, spaceId: ${spaceId}`)
+    console.log(`[onReaction] Reaction received: ${reaction}, channelId: ${channelId}, userId: ${userId}, spaceId: ${spaceId}, messageId: ${messageId}`)
     
     // Handle sword emoji for battle participation
     // Towns Protocol sends reactions as string identifiers (e.g., "crossed_swords") not emojis
     if (reaction === '⚔️' || reaction === 'crossed_swords') {
         console.log(`[onReaction] Sword emoji detected, looking for battle...`)
-        // For public battles, check public battle first (works from any town)
-        // For private battles, check private battle for this space
-        let battle = getActivePublicBattle()
-        console.log(`[onReaction] Public battle: ${battle ? battle.battleId : 'none'}`)
-        if (!battle && spaceId) {
-            battle = getActivePrivateBattle(spaceId)
-            console.log(`[onReaction] Private battle for space ${spaceId}: ${battle ? battle.battleId : 'none'}`)
+        
+        // Find the battle by the messageId they're reacting to (the announcement message)
+        // This ensures users join the specific battle they're reacting to
+        let battle: BattleState | undefined = undefined
+        
+        if (messageId) {
+            // Check all active battles to find which one has this announcement messageId
+            const publicBattle = getActivePublicBattle()
+            if (publicBattle && publicBattle.announcementEventId === messageId) {
+                battle = publicBattle
+                console.log(`[onReaction] Found public battle by announcementEventId: ${battle.battleId}`)
+            }
+            
+            if (!battle && spaceId) {
+                const privateBattle = getActivePrivateBattle(spaceId)
+                if (privateBattle && privateBattle.announcementEventId === messageId) {
+                    battle = privateBattle
+                    console.log(`[onReaction] Found private battle by announcementEventId: ${battle.battleId}`)
+                }
+            }
         }
+        
+        // Fallback: if no battle found by messageId, try finding by space/channel
+        // (for backward compatibility or if announcementEventId wasn't stored)
         if (!battle) {
-            battle = getActiveBattle()
-            console.log(`[onReaction] Fallback battle: ${battle ? battle.battleId : 'none'}`)
+            if (spaceId) {
+                battle = getActivePrivateBattle(spaceId)
+                console.log(`[onReaction] Fallback: Private battle for space ${spaceId}: ${battle ? battle.battleId : 'none'}`)
+            }
+            if (!battle) {
+                battle = getActivePublicBattle()
+                console.log(`[onReaction] Fallback: Public battle: ${battle ? battle.battleId : 'none'}`)
+            }
+            if (!battle) {
+                battle = getActiveBattle()
+                console.log(`[onReaction] Fallback: Any battle: ${battle ? battle.battleId : 'none'}`)
+            }
         }
+        
         if (!battle) {
             console.log(`[onReaction] No battle found, returning early`)
             return

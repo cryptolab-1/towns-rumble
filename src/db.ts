@@ -20,6 +20,7 @@ export interface BattleState {
     isPrivate: boolean // If true, only participants from the original space can join
     isTest: boolean // If true, this is a test battle and rewards go to admin
     threadId?: string // Thread root eventId for battle messages (tip that started the battle)
+    announcementEventId?: string // EventId of the announcement message (for reactions)
     createdAt: number
     startedAt?: number
     endedAt?: number

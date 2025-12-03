@@ -632,11 +632,21 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId }) => {
         
         const joined = handleReaction(handler, userId, reaction, channelId, spaceId)
         if (joined) {
+            // Get fresh battle state to get accurate participant count
+            const freshBattle = getActivePublicBattle() || getActivePrivateBattle(spaceId || '') || battle
             await handler.sendMessage(
                 channelId,
-                `<@${userId}> has joined the battle! ⚔️ (${battle.participants.length} participants)`
+                `<@${userId}> has joined the battle! ⚔️ (${freshBattle.participants.length} participants)`
             )
         } else {
+            // Check if user is already in the battle (duplicate reaction)
+            const freshBattle = getActivePublicBattle() || getActivePrivateBattle(spaceId || '') || battle
+            if (freshBattle && freshBattle.participants.includes(userId)) {
+                await handler.sendMessage(
+                    channelId,
+                    `ℹ️ You're already in the battle! ⚔️ (${freshBattle.participants.length} participants)`
+                )
+            } else {
             // Check if it's a private battle and user tried to join from wrong town
             if (battle.isPrivate && spaceId && battle.spaceId !== spaceId) {
                 await handler.sendMessage(

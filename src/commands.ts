@@ -20,6 +20,10 @@ const commands = [
         description: 'Add 5 test players to current battle for testing (admin only)',
     },
     {
+        name: 'test2',
+        description: 'Add 5 fake users (excluding admin) to current battle - can be used in any town',
+    },
+    {
         name: 'leaderboard',
         description: 'View the top 10 players leaderboard',
     },

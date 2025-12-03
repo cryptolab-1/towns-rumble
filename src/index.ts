@@ -705,7 +705,15 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId }) => {
     
     // Handle sword emoji for battle participation
     if (reaction === '⚔️') {
-        const battle = getActiveBattle()
+        // For public battles, check public battle first (works from any town)
+        // For private battles, check private battle for this space
+        let battle = getActivePublicBattle()
+        if (!battle && spaceId) {
+            battle = getActivePrivateBattle(spaceId)
+        }
+        if (!battle) {
+            battle = getActiveBattle()
+        }
         if (!battle) return
         
         const joined = handleReaction(handler, userId, reaction, channelId, spaceId)

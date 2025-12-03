@@ -625,10 +625,7 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
             `⚔️ **BATTLE STARTING!** ⚔️\n\n` +
             `**${battle.participants.length} fighters** are entering the arena!\n` +
             (battle.rewardAmount ? `💰 **Reward Pool:** ${(await import('./token')).formatTokenAmount(BigInt(battle.rewardAmount))} TOWNS\n` : '') +
-            `\nLet the battle begin! 🗡️`,
-            {
-                threadId: messageId,
-            }
+            `\nLet the battle begin! 🗡️`
         )
 
         // Start battle loop in background

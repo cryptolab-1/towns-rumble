@@ -71,7 +71,11 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
     // For public battles, broadcast to all tracked channels
     if (!isPrivate) {
         const channels = getPublicBattleChannels()
-        for (const channel of channels) {
+        // Also try to discover and track other channels by attempting to send to known spaces
+        // For now, we'll track channels as we successfully send to them
+        const channelsToBroadcast = [...channels]
+        
+        for (const channel of channelsToBroadcast) {
             try {
                 // Determine if this is the originating town or another town
                 const isOriginatingTown = channel.spaceId === spaceId
@@ -84,8 +88,12 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
                     `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
                 
                 await bot.sendMessage(channel.channelId, battleMessage)
+                // Track channel if message was sent successfully (in case it wasn't already tracked)
+                trackChannelForPublicBattles(channel.channelId, channel.spaceId, channel.spaceName)
             } catch (error) {
                 console.error(`Error broadcasting to channel ${channel.channelId}:`, error)
+                // If sending fails, the channel might not exist or bot might not have access
+                // Don't track failed channels
             }
         }
     } else {
@@ -276,6 +284,8 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                             `Once approved, tip me **$1 USD worth of ETH** to launch the battle!`
                         
                         await bot.sendMessage(channel.channelId, battleMessage)
+                        // Track channel if message was sent successfully (in case it wasn't already tracked)
+                        trackChannelForPublicBattles(channel.channelId, channel.spaceId, channel.spaceName)
                     } catch (error) {
                         console.error(`Error broadcasting to channel ${channel.channelId}:`, error)
                     }

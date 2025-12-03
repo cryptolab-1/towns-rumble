@@ -7,7 +7,7 @@ import {
     handleTip,
     startBattleLoop,
 } from './battle'
-import { getActiveBattle, getActivePublicBattle, getActivePrivateBattle, setActivePublicBattle, setActivePrivateBattle, trackChannelForPublicBattles, getPublicBattleChannels } from './db'
+import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActivePublicBattle, setActivePrivateBattle, trackChannelForPublicBattles, getPublicBattleChannels } from './db'
 
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,
@@ -602,8 +602,9 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
         return
     }
 
-    const battle = getActiveBattle()
-    if (!battle || battle.channelId !== channelId) {
+    // Get battle by channelId to handle both public and private battles correctly
+    const battle = getBattleByChannelId(channelId)
+    if (!battle) {
         return
     }
 

@@ -703,20 +703,31 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId }) => {
     // Track channel for public battle announcements
     trackChannelForPublicBattles(channelId, spaceId)
     
+    console.log(`[onReaction] Reaction received: ${reaction}, channelId: ${channelId}, userId: ${userId}, spaceId: ${spaceId}`)
+    
     // Handle sword emoji for battle participation
     if (reaction === '⚔️') {
+        console.log(`[onReaction] Sword emoji detected, looking for battle...`)
         // For public battles, check public battle first (works from any town)
         // For private battles, check private battle for this space
         let battle = getActivePublicBattle()
+        console.log(`[onReaction] Public battle: ${battle ? battle.battleId : 'none'}`)
         if (!battle && spaceId) {
             battle = getActivePrivateBattle(spaceId)
+            console.log(`[onReaction] Private battle for space ${spaceId}: ${battle ? battle.battleId : 'none'}`)
         }
         if (!battle) {
             battle = getActiveBattle()
+            console.log(`[onReaction] Fallback battle: ${battle ? battle.battleId : 'none'}`)
         }
-        if (!battle) return
+        if (!battle) {
+            console.log(`[onReaction] No battle found, returning early`)
+            return
+        }
         
+        console.log(`[onReaction] Battle found: ${battle.battleId}, calling handleReaction...`)
         const joined = handleReaction(handler, userId, reaction, channelId, spaceId, battle)
+        console.log(`[onReaction] handleReaction returned: ${joined}`)
         if (joined) {
             // Get fresh battle state to get accurate participant count
             const freshBattle = getActivePublicBattle() || getActivePrivateBattle(spaceId || '') || battle

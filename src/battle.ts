@@ -52,7 +52,11 @@ export function handleReaction(
     spaceId?: string,
     battle?: BattleState
 ): boolean {
-    if (reaction !== SWORD_EMOJI) return false
+    console.log(`[handleReaction] Called with reaction: ${reaction}, userId: ${userId}, channelId: ${channelId}, spaceId: ${spaceId}, battle: ${battle ? battle.battleId : 'none'}`)
+    if (reaction !== SWORD_EMOJI) {
+        console.log(`[handleReaction] Reaction doesn't match SWORD_EMOJI, returning false`)
+        return false
+    }
     
     // If battle is not provided, try to find it
     if (!battle) {

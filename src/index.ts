@@ -70,8 +70,12 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
     
     // For public battles, broadcast to all tracked channels
     if (!isPrivate) {
-        // Get channels after tracking to ensure the current channel is included
+        // Get channels after tracking - since writeDatabase is synchronous, the write should be complete
+        // But we'll get fresh data to ensure we have the latest tracked channels
         const channels = getPublicBattleChannels()
+        
+        // Log for debugging
+        console.log(`📢 Broadcasting public battle to ${channels.length} tracked channel(s)`)
         
         for (const channel of channels) {
             try {

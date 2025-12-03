@@ -83,11 +83,21 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
                 const isOriginatingTown = channel.spaceId === spaceId
                 const locationText = isOriginatingTown ? 'initiated in this town' : 'initiated from another town'
                 
-                const battleMessage = `⚔️ **BATTLE ROYALE INITIATED!** ⚔️\n\n` +
-                    `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
-                    `React with ⚔️ to join the battle!\n\n` +
-                    `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
-                    `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
+                let battleMessage: string
+                if (isOriginatingTown) {
+                    // Originating town gets full message with warnings
+                    battleMessage = `⚔️ **BATTLE ROYALE INITIATED!** ⚔️\n\n` +
+                        `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
+                        `React with ⚔️ to join the battle!\n\n` +
+                        `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
+                        `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
+                } else {
+                    // Other towns get simplified message
+                    battleMessage = `⚔️ **BATTLE ROYALE INITIATED!** ⚔️\n\n` +
+                        `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
+                        `React with ⚔️ to join the battle!\n\n` +
+                        `⚔️ The Battle will start soon`
+                }
                 
                 await bot.sendMessage(channel.channelId, battleMessage)
                 // Track channel if message was sent successfully (in case it wasn't already tracked)
@@ -330,13 +340,23 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                 const isOriginatingTown = channel.spaceId === spaceId
                 const locationText = isOriginatingTown ? 'initiated in this town' : 'initiated from another town'
                 
-                const battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
-                    `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
-                    `React with ⚔️ to join the battle!\n` +
-                    `💰 **Reward Pool:** ${formatTokenAmount(requiredAmount)} TOWNS\n\n` +
-                    `⚠️ **WARNING:** Be sure to have enough TOWNS before launching the Battle!\n\n` +
-                    `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
-                    `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
+                let battleMessage: string
+                if (isOriginatingTown) {
+                    // Originating town gets full message with warnings
+                    battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
+                        `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
+                        `React with ⚔️ to join the battle!\n` +
+                        `💰 **Reward Pool:** ${formatTokenAmount(requiredAmount)} TOWNS\n\n` +
+                        `⚠️ **WARNING:** Be sure to have enough TOWNS before launching the Battle!\n\n` +
+                        `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
+                        `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
+                } else {
+                    // Other towns get simplified message
+                    battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
+                        `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
+                        `React with ⚔️ to join the battle!\n\n` +
+                        `⚔️ The Battle will start soon`
+                }
                 
                 await bot.sendMessage(channel.channelId, battleMessage)
             } catch (error) {
@@ -421,14 +441,26 @@ bot.onSlashCommand('cancel', async (handler, { channelId, spaceId, userId }) => 
         ? `\n💰 Reward pool of ${(await import('./token')).formatTokenAmount(BigInt(battle.rewardAmount))} TOWNS was not distributed.`
         : ''
 
-    await handler.sendMessage(
-        channelId,
-        `❌ **BATTLE CANCELLED** ❌\n\n` +
+    const cancelMessage = `❌ **BATTLE CANCELLED** ❌\n\n` +
         `The battle has been cancelled by the admin.\n` +
         `${participantCount > 0 ? `${participantCount} participant${participantCount > 1 ? 's were' : ' was'} removed from the battle.\n` : ''}` +
         `${rewardInfo}\n` +
         `You can start a new battle with \`/rumble\`.`
-    )
+
+    if (battle.isPrivate) {
+        // Private battle - only send to original channel
+        await handler.sendMessage(channelId, cancelMessage)
+    } else {
+        // Public battle - broadcast to all tracked channels
+        const channels = getPublicBattleChannels()
+        for (const channel of channels) {
+            try {
+                await bot.sendMessage(channel.channelId, cancelMessage)
+            } catch (error) {
+                console.error(`Error broadcasting cancel message to channel ${channel.channelId}:`, error)
+            }
+        }
+    }
 })
 
 bot.onSlashCommand('test', async (handler, { channelId, spaceId, userId }) => {

@@ -706,7 +706,8 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId }) => {
     console.log(`[onReaction] Reaction received: ${reaction}, channelId: ${channelId}, userId: ${userId}, spaceId: ${spaceId}`)
     
     // Handle sword emoji for battle participation
-    if (reaction === '⚔️') {
+    // Towns Protocol sends reactions as string identifiers (e.g., "crossed_swords") not emojis
+    if (reaction === '⚔️' || reaction === 'crossed_swords') {
         console.log(`[onReaction] Sword emoji detected, looking for battle...`)
         // For public battles, check public battle first (works from any town)
         // For private battles, check private battle for this space

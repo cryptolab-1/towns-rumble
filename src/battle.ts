@@ -3,6 +3,7 @@ import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActive
 import { getTipAmountRange } from './ethPrice'
 
 const SWORD_EMOJI = '⚔️'
+const SWORD_EMOJI_NAME = 'crossed_swords' // Towns Protocol sends reactions as string identifiers
 
 export function canStartBattle(handler: BotHandler, userId: string, spaceId: string): Promise<boolean> {
     return handler.hasAdminPermission(userId, spaceId)
@@ -53,8 +54,9 @@ export function handleReaction(
     battle?: BattleState
 ): boolean {
     console.log(`[handleReaction] Called with reaction: ${reaction}, userId: ${userId}, channelId: ${channelId}, spaceId: ${spaceId}, battle: ${battle ? battle.battleId : 'none'}`)
-    if (reaction !== SWORD_EMOJI) {
-        console.log(`[handleReaction] Reaction doesn't match SWORD_EMOJI, returning false`)
+    // Towns Protocol sends reactions as string identifiers (e.g., "crossed_swords") not emojis
+    if (reaction !== SWORD_EMOJI && reaction !== SWORD_EMOJI_NAME) {
+        console.log(`[handleReaction] Reaction doesn't match SWORD_EMOJI or SWORD_EMOJI_NAME, returning false. Got: ${reaction}`)
         return false
     }
     

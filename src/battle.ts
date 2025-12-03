@@ -307,8 +307,11 @@ export async function startBattleLoop(
             }
         }
         
-        // Send fight message
-        await bot.sendMessage(battle.channelId, roundMessage)
+        // Send fight message as a reply inside the battle thread (if any)
+        const sendOpts = currentBattle.threadId
+            ? { threadId: currentBattle.threadId }
+            : undefined
+        await bot.sendMessage(battle.channelId, roundMessage, sendOpts)
         
         participants = participants.filter(p => !eliminated.has(p))
     }
@@ -347,16 +350,24 @@ export async function startBattleLoop(
                     : finalBattle.winners.length === 2
                     ? `🥇 1st: <@${finalBattle.winners[0]}>\n🥈 2nd: <@${finalBattle.winners[1]}>`
                     : `🥇 1st: <@${finalBattle.winners[0]}>\n🥈 2nd: <@${finalBattle.winners[1]}>\n🥉 3rd: <@${finalBattle.winners[2]}>`
-                
+
+                const sendOpts = finalBattle.threadId
+                    ? { threadId: finalBattle.threadId }
+                    : undefined
+
                 await bot.sendMessage(
                     battle.channelId,
-                    `🏆 **BATTLE ROYALE COMPLETE!** 🏆\n\n${winnerText}\n\nThanks to all participants for an epic battle!`
+                    `🏆 **BATTLE ROYALE COMPLETE!** 🏆\n\n${winnerText}\n\nThanks to all participants for an epic battle!`,
+                    sendOpts
                 )
             }
         } else {
             // Edge case: no winner
             finishBattle(finalBattle)
-            await bot.sendMessage(battle.channelId, '⚔️ The battle ended with no clear winner.')
+            const sendOpts = finalBattle.threadId
+                ? { threadId: finalBattle.threadId }
+                : undefined
+            await bot.sendMessage(battle.channelId, '⚔️ The battle ended with no clear winner.', sendOpts)
         }
     }
 }

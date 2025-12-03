@@ -612,12 +612,23 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
             }
         }
 
+        // Use the tip message as the thread root so all battle messages are grouped
+        // Store threadId on the battle so the loop can reply inside this thread
+        battle.threadId = messageId
+        {
+            const { setActiveBattle } = await import('./db')
+            setActiveBattle(battle)
+        }
+
         await handler.sendMessage(
             channelId,
             `⚔️ **BATTLE STARTING!** ⚔️\n\n` +
             `**${battle.participants.length} fighters** are entering the arena!\n` +
             (battle.rewardAmount ? `💰 **Reward Pool:** ${(await import('./token')).formatTokenAmount(BigInt(battle.rewardAmount))} TOWNS\n` : '') +
-            `\nLet the battle begin! 🗡️`
+            `\nLet the battle begin! 🗡️`,
+            {
+                threadId: messageId,
+            }
         )
 
         // Start battle loop in background

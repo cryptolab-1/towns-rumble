@@ -307,9 +307,11 @@ export async function startBattleLoop(
             }
         }
         
-        // Send fight message as a reply inside the battle thread (if any)
+        // Send fight message as a reply inside the battle thread (if any).
+        // We use both threadId and replyId pointing to the root message (the tipped message)
+        // so Towns renders a visible thread under that message.
         const sendOpts = currentBattle.threadId
-            ? { threadId: currentBattle.threadId }
+            ? { threadId: currentBattle.threadId, replyId: currentBattle.threadId }
             : undefined
         await bot.sendMessage(battle.channelId, roundMessage, sendOpts)
         
@@ -352,7 +354,7 @@ export async function startBattleLoop(
                     : `🥇 1st: <@${finalBattle.winners[0]}>\n🥈 2nd: <@${finalBattle.winners[1]}>\n🥉 3rd: <@${finalBattle.winners[2]}>`
 
                 const sendOpts = finalBattle.threadId
-                    ? { threadId: finalBattle.threadId }
+                    ? { threadId: finalBattle.threadId, replyId: finalBattle.threadId }
                     : undefined
 
                 await bot.sendMessage(
@@ -365,7 +367,7 @@ export async function startBattleLoop(
             // Edge case: no winner
             finishBattle(finalBattle)
             const sendOpts = finalBattle.threadId
-                ? { threadId: finalBattle.threadId }
+                ? { threadId: finalBattle.threadId, replyId: finalBattle.threadId }
                 : undefined
             await bot.sendMessage(battle.channelId, '⚔️ The battle ended with no clear winner.', sendOpts)
         }

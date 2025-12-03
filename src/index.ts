@@ -647,17 +647,18 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId }) => {
                     `ℹ️ You're already in the battle! ⚔️ (${freshBattle.participants.length} participants)`
                 )
             } else {
-            // Check if it's a private battle and user tried to join from wrong town
-            if (battle.isPrivate && spaceId && battle.spaceId !== spaceId) {
-                await handler.sendMessage(
-                    channelId,
-                    `❌ This is a private battle. You can only join from the town where it was started.`
-                )
-            } else if (battle.status !== 'collecting' && battle.status !== 'pending_tip') {
-                await handler.sendMessage(
-                    channelId,
-                    `❌ This battle is no longer accepting participants.`
-                )
+                // Check if it's a private battle and user tried to join from wrong town
+                if (battle.isPrivate && spaceId && battle.spaceId !== spaceId) {
+                    await handler.sendMessage(
+                        channelId,
+                        `❌ This is a private battle. You can only join from the town where it was started.`
+                    )
+                } else if (battle.status !== 'collecting' && battle.status !== 'pending_tip' && battle.status !== 'pending_approval') {
+                    await handler.sendMessage(
+                        channelId,
+                        `❌ This battle is no longer accepting participants.`
+                    )
+                }
             }
         }
         return

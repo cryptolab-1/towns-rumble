@@ -286,14 +286,24 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                         const isOriginatingTown = channel.spaceId === spaceId
                         const locationText = isOriginatingTown ? 'initiated in this town' : 'initiated from another town'
                         
-                        const battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
-                            `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
-                            `React with ⚔️ to join the battle!\n\n` +
-                            `💰 **Reward Pool:** ${formatTokenAmount(requiredAmount)} TOWNS\n\n` +
-                            `⚠️ **Token Approval Required**\n` +
-                            `Please approve the transaction in the dialog above to allow the bot to distribute rewards.\n\n` +
-                            `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
-                            `Once approved, tip me **$1 USD worth of ETH** to launch the battle!`
+                        let battleMessage: string
+                        if (isOriginatingTown) {
+                            // Originating town gets full message with warnings
+                            battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
+                                `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
+                                `React with ⚔️ to join the battle!\n\n` +
+                                `💰 **Reward Pool:** ${formatTokenAmount(requiredAmount)} TOWNS\n\n` +
+                                `⚠️ **Token Approval Required**\n` +
+                                `Please approve the transaction in the dialog above to allow the bot to distribute rewards.\n\n` +
+                                `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
+                                `Once approved, tip me **$1 USD worth of ETH** to launch the battle!`
+                        } else {
+                            // Other towns get simplified message
+                            battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
+                                `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
+                                `React with ⚔️ to join the battle!\n\n` +
+                                `⚔️ The Battle will start soon`
+                        }
                         
                         await bot.sendMessage(channel.channelId, battleMessage)
                         // Track channel if message was sent successfully (in case it wasn't already tracked)

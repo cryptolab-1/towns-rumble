@@ -346,13 +346,19 @@ export function finishBattle(battle: BattleState): void {
 export function addParticipant(battleId: string, userId: string): boolean {
     const data = readDatabase()
     
+    console.log(`[addParticipant] Attempting to add userId: ${userId} to battleId: ${battleId}`)
+    console.log(`[addParticipant] Public battle exists: ${!!data.activeBattles?.public}, battleId: ${data.activeBattles?.public?.battleId}, status: ${data.activeBattles?.public?.status}`)
+    
     // Check public battle
     if (data.activeBattles?.public?.battleId === battleId && 
         (data.activeBattles.public.status === 'collecting' || data.activeBattles.public.status === 'pending_tip' || data.activeBattles.public.status === 'pending_approval')) {
         if (!data.activeBattles.public.participants.includes(userId)) {
             data.activeBattles.public.participants.push(userId)
             writeDatabase(data)
+            console.log(`[addParticipant] Successfully added to public battle. New participant count: ${data.activeBattles.public.participants.length}`)
             return true
+        } else {
+            console.log(`[addParticipant] User already in public battle`)
         }
     }
     

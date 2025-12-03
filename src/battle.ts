@@ -53,37 +53,41 @@ export function handleReaction(
 ): boolean {
     if (reaction !== SWORD_EMOJI) return false
     
+    // For public battles, check first (works from any town)
     // For private battles, check the specific space's battle
-    // For public battles, check the global public battle
     let battle: BattleState | undefined
-    if (spaceId) {
+    
+    // Check public battle first (can be joined from any town)
+    const publicBattle = getActivePublicBattle()
+    if (publicBattle && !publicBattle.isPrivate) {
+        battle = publicBattle
+    }
+    
+    // If no public battle, check private battle for this space
+    if (!battle && spaceId) {
         const privateBattle = getActivePrivateBattle(spaceId)
         if (privateBattle && privateBattle.channelId === channelId) {
             battle = privateBattle
         }
     }
     
-    // If no private battle found, check public battle
-    // For public battles, allow joining from ANY channel (cross-town participation)
-    if (!battle) {
-        const publicBattle = getActivePublicBattle()
-        // Don't check channelId - public battles can be joined from any town
-        if (publicBattle && !publicBattle.isPrivate) {
-            battle = publicBattle
-        }
-    }
-    
-    // Fallback: search by channelId (for backward compatibility)
+    // Fallback: search by channelId (for backward compatibility or same-channel battles)
     if (!battle) {
         battle = getBattleByChannelId(channelId)
     }
     
-    if (!battle) return false
+    if (!battle) {
+        console.log(`[handleReaction] No battle found. channelId: ${channelId}, spaceId: ${spaceId}`)
+        return false
+    }
+    
+    console.log(`[handleReaction] Found battle: ${battle.battleId}, isPrivate: ${battle.isPrivate}, status: ${battle.status}, spaceId: ${battle.spaceId}`)
     
     // For private battles, only allow joining from the original space (town)
     // Any channel in that space can join
     if (battle.isPrivate) {
         if (!spaceId || battle.spaceId !== spaceId) {
+            console.log(`[handleReaction] Private battle - wrong town. battle.spaceId: ${battle.spaceId}, current spaceId: ${spaceId}`)
             return false
         }
     }
@@ -93,10 +97,13 @@ export function handleReaction(
     
     // Allow joining during 'collecting', 'pending_tip', or 'pending_approval' phases
     if (battle.status !== 'collecting' && battle.status !== 'pending_tip' && battle.status !== 'pending_approval') {
+        console.log(`[handleReaction] Battle status not accepting participants: ${battle.status}`)
         return false
     }
     
-    return addParticipant(battle.battleId, userId)
+    const result = addParticipant(battle.battleId, userId)
+    console.log(`[handleReaction] addParticipant result: ${result} for userId: ${userId}, battleId: ${battle.battleId}`)
+    return result
 }
 
 export async function handleTip(

@@ -1,5 +1,5 @@
 import type { BotHandler } from '@towns-protocol/bot'
-import { getActiveBattle, setActiveBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, incrementPlayerStat } from './db'
+import { getActiveBattle, getBattleByChannelId, getBattleByBattleId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, incrementPlayerStat } from './db'
 import { getTipAmountRange } from './ethPrice'
 
 const SWORD_EMOJI = '⚔️'
@@ -36,7 +36,11 @@ export function initiateBattle(
         isTest,
         createdAt: Date.now(),
     }
-    setActiveBattle(battle)
+    if (isPrivate) {
+        setActivePrivateBattle(spaceId, battle)
+    } else {
+        setActivePublicBattle(battle)
+    }
     return battleId
 }
 
@@ -49,7 +53,29 @@ export function handleReaction(
 ): boolean {
     if (reaction !== SWORD_EMOJI) return false
     
-    const battle = getActiveBattle()
+    // For private battles, check the specific space's battle
+    // For public battles, check the global public battle
+    let battle: BattleState | undefined
+    if (spaceId) {
+        const privateBattle = getActivePrivateBattle(spaceId)
+        if (privateBattle && privateBattle.channelId === channelId) {
+            battle = privateBattle
+        }
+    }
+    
+    // If no private battle found, check public battle
+    if (!battle) {
+        const publicBattle = getActivePublicBattle()
+        if (publicBattle && publicBattle.channelId === channelId) {
+            battle = publicBattle
+        }
+    }
+    
+    // Fallback: search by channelId (for backward compatibility)
+    if (!battle) {
+        battle = getBattleByChannelId(channelId)
+    }
+    
     if (!battle) return false
     
     // For private battles, only allow joining from the original space (town)
@@ -63,8 +89,8 @@ export function handleReaction(
     // For public battles, allow joining from any space (town) with the bot installed
     // No space restriction - cross-town participation
     
-    // Allow joining during 'collecting' or 'pending_tip' phases
-    if (battle.status !== 'collecting' && battle.status !== 'pending_tip') {
+    // Allow joining during 'collecting', 'pending_tip', or 'pending_approval' phases
+    if (battle.status !== 'collecting' && battle.status !== 'pending_tip' && battle.status !== 'pending_approval') {
         return false
     }
     
@@ -77,8 +103,8 @@ export async function handleTip(
     amount: bigint,
     channelId: string
 ): Promise<boolean> {
-    const battle = getActiveBattle()
-    if (!battle || battle.channelId !== channelId) return false
+    const battle = getBattleByChannelId(channelId)
+    if (!battle) return false
     
     if (battle.status !== 'pending_tip') return false
     if (senderId !== battle.adminId) return false
@@ -101,7 +127,12 @@ export async function handleTip(
     battle.tipReceived = true
     battle.tipAmount = amount.toString()
     battle.startedAt = Date.now()
-    setActiveBattle(battle)
+    
+    if (battle.isPrivate) {
+        setActivePrivateBattle(battle.spaceId, battle)
+    } else {
+        setActivePublicBattle(battle)
+    }
     return true
 }
 
@@ -109,8 +140,8 @@ export async function startBattleLoop(
     bot: any,
     battleId: string
 ): Promise<void> {
-    const battle = getActiveBattle()
-    if (!battle || battle.battleId !== battleId || battle.status !== 'active') {
+    const battle = getBattleByBattleId(battleId)
+    if (!battle || battle.status !== 'active') {
         return
     }
     
@@ -126,8 +157,8 @@ export async function startBattleLoop(
         await new Promise(resolve => setTimeout(resolve, 10000))
         
         // Check if battle still exists and is active
-        const currentBattle = getActiveBattle()
-        if (!currentBattle || currentBattle.battleId !== battleId || currentBattle.status !== 'active') {
+        const currentBattle = getBattleByBattleId(battleId)
+        if (!currentBattle || currentBattle.status !== 'active') {
             return
         }
         
@@ -209,8 +240,8 @@ export async function startBattleLoop(
         }
         
         // Track top 3 winners as participants are eliminated (in order of elimination)
-        const updatedBattle = getActiveBattle()
-        if (updatedBattle && updatedBattle.battleId === battleId && eliminatedThisRound.length > 0) {
+        const updatedBattle = getBattleByBattleId(battleId)
+        if (updatedBattle && eliminatedThisRound.length > 0) {
             // Create a temporary set to track eliminations as we process them
             const tempEliminated = new Set(eliminated)
             // Remove the eliminations from this round to calculate counts correctly
@@ -243,14 +274,18 @@ export async function startBattleLoop(
         }
         
         // Update battle state
-        const updatedBattle2 = getActiveBattle()
-        if (updatedBattle2 && updatedBattle2.battleId === battleId) {
+        const updatedBattle2 = getBattleByBattleId(battleId)
+        if (updatedBattle2) {
             updatedBattle2.currentRound = round
             updatedBattle2.eliminated = Array.from(eliminated)
             if (updatedBattle && updatedBattle.winners.length > 0) {
                 updatedBattle2.winners = updatedBattle.winners
             }
-            setActiveBattle(updatedBattle2)
+            if (updatedBattle2.isPrivate) {
+                setActivePrivateBattle(updatedBattle2.spaceId, updatedBattle2)
+            } else {
+                setActivePublicBattle(updatedBattle2)
+            }
         }
         
         // Build round message
@@ -279,8 +314,8 @@ export async function startBattleLoop(
     }
     
     // Determine winners (top 3)
-    const finalBattle = getActiveBattle()
-    if (finalBattle && finalBattle.battleId === battleId) {
+    const finalBattle = getBattleByBattleId(battleId)
+    if (finalBattle) {
         const remaining = participants.filter(p => !eliminated.has(p))
         
         if (remaining.length >= 1) {
@@ -436,8 +471,12 @@ async function distributeRewards(bot: any, battle: any): Promise<void> {
         
         // Mark rewards as distributed
         battle.rewardDistributed = true
-        const { setActiveBattle } = await import('./db')
-        setActiveBattle(battle)
+        const { setActivePublicBattle, setActivePrivateBattle } = await import('./db')
+        if (battle.isPrivate) {
+            setActivePrivateBattle(battle.spaceId, battle)
+        } else {
+            setActivePublicBattle(battle)
+        }
     } catch (error) {
         console.error('Error distributing rewards:', error)
         await bot.sendMessage(

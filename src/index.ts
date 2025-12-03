@@ -7,7 +7,7 @@ import {
     handleTip,
     startBattleLoop,
 } from './battle'
-import { getActiveBattle } from './db'
+import { getActiveBattle, getActivePublicBattle, getActivePrivateBattle, setActivePublicBattle, setActivePrivateBattle } from './db'
 
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,
@@ -18,16 +18,6 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
     const isAdmin = await canStartBattle(handler, userId, spaceId)
     if (!isAdmin) {
         await handler.sendMessage(channelId, '❌ Only admins can start a battle!')
-        return
-    }
-
-    // Check if there's already an active battle
-    const activeBattle = getActiveBattle()
-    if (activeBattle && activeBattle.status !== 'finished') {
-        await handler.sendMessage(
-            channelId,
-            `⚔️ There's already an active battle in progress! Please wait for it to finish.`
-        )
         return
     }
 
@@ -45,6 +35,30 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
         }
     }
 
+    // Check for active battles based on type
+    if (isPrivate) {
+        // Check if there's already an active private battle in this space
+        const activePrivateBattle = getActivePrivateBattle(spaceId)
+        if (activePrivateBattle && activePrivateBattle.status !== 'finished') {
+            await handler.sendMessage(
+                channelId,
+                `⚔️ There's already an active private battle in this town! Please wait for it to finish.`
+            )
+            return
+        }
+    } else {
+        // Check if there's already an active public battle
+        const activePublicBattle = getActivePublicBattle()
+        if (activePublicBattle && activePublicBattle.status !== 'finished') {
+            await handler.sendMessage(
+                channelId,
+                `⚔️ There's already an active public battle in progress! Please wait for it to finish.\n\n` +
+                `💡 You can launch a private battle instead using: \`/rumble private\``
+            )
+            return
+        }
+    }
+
     // Initiate new battle without rewards
     const battleId = initiateBattle(handler, channelId, spaceId, userId, undefined, isPrivate)
     
@@ -58,11 +72,14 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
     )
 
     // Update battle status to pending tip
-    const battle = getActiveBattle()
+    const battle = isPrivate ? getActivePrivateBattle(spaceId) : getActivePublicBattle()
     if (battle && battle.battleId === battleId) {
         battle.status = 'pending_tip'
-        const { setActiveBattle } = await import('./db')
-        setActiveBattle(battle)
+        if (isPrivate) {
+            setActivePrivateBattle(spaceId, battle)
+        } else {
+            setActivePublicBattle(battle)
+        }
     }
 })
 
@@ -71,16 +88,6 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
     const isAdmin = await canStartBattle(handler, userId, spaceId)
     if (!isAdmin) {
         await handler.sendMessage(channelId, '❌ Only admins can start a battle!')
-        return
-    }
-
-    // Check if there's already an active battle
-    const activeBattle = getActiveBattle()
-    if (activeBattle && activeBattle.status !== 'finished') {
-        await handler.sendMessage(
-            channelId,
-            `⚔️ There's already an active battle in progress! Please wait for it to finish.`
-        )
         return
     }
 
@@ -118,6 +125,30 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
         isPrivate = true
     } else if (publicArg) {
         isPrivate = false
+    }
+
+    // Check for active battles based on type
+    if (isPrivate) {
+        // Check if there's already an active private battle in this space
+        const activePrivateBattle = getActivePrivateBattle(spaceId)
+        if (activePrivateBattle && activePrivateBattle.status !== 'finished') {
+            await handler.sendMessage(
+                channelId,
+                `⚔️ There's already an active private battle in this town! Please wait for it to finish.`
+            )
+            return
+        }
+    } else {
+        // Check if there's already an active public battle
+        const activePublicBattle = getActivePublicBattle()
+        if (activePublicBattle && activePublicBattle.status !== 'finished') {
+            await handler.sendMessage(
+                channelId,
+                `⚔️ There's already an active public battle in progress! Please wait for it to finish.\n\n` +
+                `💡 You can launch a private battle instead using: \`/rumble_reward ${rewardAmountStr} private\``
+            )
+            return
+        }
     }
 
     // Initiate new battle with rewards

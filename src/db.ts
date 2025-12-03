@@ -34,7 +34,11 @@ export interface PlayerStats {
 }
 
 interface BattleData {
-    activeBattle?: BattleState
+    activeBattle?: BattleState // Legacy: for backward compatibility
+    activeBattles?: {
+        public?: BattleState
+        private: Record<string, BattleState> // spaceId -> BattleState
+    }
     pastBattles: BattleState[]
     fightEvents: string[]
     lastEthPrice?: number
@@ -115,13 +119,26 @@ function readDatabase(): BattleData {
             if (!parsed.playerStats) {
                 parsed.playerStats = {}
             }
+            // Migrate old structure to new structure
+            if (!parsed.activeBattles) {
+                parsed.activeBattles = { private: {} }
+                if (parsed.activeBattle && parsed.activeBattle.status !== 'finished') {
+                    if (parsed.activeBattle.isPrivate) {
+                        parsed.activeBattles.private[parsed.activeBattle.spaceId] = parsed.activeBattle
+                    } else {
+                        parsed.activeBattles.public = parsed.activeBattle
+                    }
+                }
+            } else if (!parsed.activeBattles.private) {
+                parsed.activeBattles.private = {}
+            }
             return parsed
         } catch (error) {
             console.error('Error reading database:', error)
-            return { pastBattles: [], fightEvents: DEFAULT_FIGHT_EVENTS, playerStats: {} }
+            return { pastBattles: [], fightEvents: DEFAULT_FIGHT_EVENTS, playerStats: {}, activeBattles: { private: {} } }
         }
     }
-    return { pastBattles: [], fightEvents: DEFAULT_FIGHT_EVENTS, playerStats: {} }
+    return { pastBattles: [], fightEvents: DEFAULT_FIGHT_EVENTS, playerStats: {}, activeBattles: { private: {} } }
 }
 
 function writeDatabase(data: BattleData): void {
@@ -133,24 +150,182 @@ function writeDatabase(data: BattleData): void {
     }
 }
 
+// Get battle by channelId (searches both public and private battles)
+export function getBattleByChannelId(channelId: string): BattleState | undefined {
+    const data = readDatabase()
+    if (data.activeBattles) {
+        if (data.activeBattles.public && data.activeBattles.public.channelId === channelId && data.activeBattles.public.status !== 'finished') {
+            return data.activeBattles.public
+        }
+        for (const spaceId in data.activeBattles.private) {
+            const battle = data.activeBattles.private[spaceId]
+            if (battle && battle.channelId === channelId && battle.status !== 'finished') {
+                return battle
+            }
+        }
+    }
+    // Fallback to old structure
+    if (data.activeBattle && data.activeBattle.channelId === channelId && data.activeBattle.status !== 'finished') {
+        return data.activeBattle
+    }
+    return undefined
+}
+
+// Get battle by battleId (searches both public and private battles)
+export function getBattleByBattleId(battleId: string): BattleState | undefined {
+    const data = readDatabase()
+    if (data.activeBattles) {
+        if (data.activeBattles.public && data.activeBattles.public.battleId === battleId && data.activeBattles.public.status !== 'finished') {
+            return data.activeBattles.public
+        }
+        for (const spaceId in data.activeBattles.private) {
+            const battle = data.activeBattles.private[spaceId]
+            if (battle && battle.battleId === battleId && battle.status !== 'finished') {
+                return battle
+            }
+        }
+    }
+    // Fallback to old structure
+    if (data.activeBattle && data.activeBattle.battleId === battleId && data.activeBattle.status !== 'finished') {
+        return data.activeBattle
+    }
+    return undefined
+}
+
+// Legacy function for backward compatibility - returns first active battle found
 export function getActiveBattle(): BattleState | undefined {
     const data = readDatabase()
+    if (data.activeBattles) {
+        if (data.activeBattles.public && data.activeBattles.public.status !== 'finished') {
+            return data.activeBattles.public
+        }
+        // Return first private battle found (for backward compatibility)
+        for (const spaceId in data.activeBattles.private) {
+            const battle = data.activeBattles.private[spaceId]
+            if (battle && battle.status !== 'finished') {
+                return battle
+            }
+        }
+    }
+    // Fallback to old structure
     return data.activeBattle
 }
 
-export function setActiveBattle(battle: BattleState | undefined): void {
+// Get active public battle
+export function getActivePublicBattle(): BattleState | undefined {
     const data = readDatabase()
-    data.activeBattle = battle
+    if (data.activeBattles?.public && data.activeBattles.public.status !== 'finished') {
+        return data.activeBattles.public
+    }
+    return undefined
+}
+
+// Get active private battle for a specific space
+export function getActivePrivateBattle(spaceId: string): BattleState | undefined {
+    const data = readDatabase()
+    const battle = data.activeBattles?.private[spaceId]
+    if (battle && battle.status !== 'finished') {
+        return battle
+    }
+    return undefined
+}
+
+// Set active public battle
+export function setActivePublicBattle(battle: BattleState | undefined): void {
+    const data = readDatabase()
+    if (!data.activeBattles) {
+        data.activeBattles = { private: {} }
+    }
+    if (battle) {
+        data.activeBattles.public = battle
+    } else {
+        delete data.activeBattles.public
+    }
+    // Also update legacy field for backward compatibility
+    if (battle && !battle.isPrivate) {
+        data.activeBattle = battle
+    } else if (!battle) {
+        data.activeBattle = undefined
+    }
     writeDatabase(data)
+}
+
+// Set active private battle for a specific space
+export function setActivePrivateBattle(spaceId: string, battle: BattleState | undefined): void {
+    const data = readDatabase()
+    if (!data.activeBattles) {
+        data.activeBattles = { private: {} }
+    }
+    if (battle) {
+        data.activeBattles.private[spaceId] = battle
+    } else {
+        delete data.activeBattles.private[spaceId]
+    }
+    // Also update legacy field for backward compatibility if this is the only battle
+    if (data.activeBattles) {
+        const activeBattles = data.activeBattles
+        if (battle && battle.isPrivate) {
+            const hasPublic = activeBattles.public && activeBattles.public.status !== 'finished'
+            const hasOtherPrivate = activeBattles.private && Object.keys(activeBattles.private).some(
+                sid => sid !== spaceId && activeBattles.private[sid]?.status !== 'finished'
+            )
+            if (!hasPublic && !hasOtherPrivate) {
+                data.activeBattle = battle
+            }
+        } else if (!battle) {
+            const hasPublic = activeBattles.public && activeBattles.public.status !== 'finished'
+            const hasOtherPrivate = activeBattles.private && Object.keys(activeBattles.private).some(
+                sid => activeBattles.private[sid]?.status !== 'finished'
+            )
+            if (!hasPublic && !hasOtherPrivate) {
+                data.activeBattle = undefined
+            }
+        }
+    }
+    writeDatabase(data)
+}
+
+// Legacy function for backward compatibility
+export function setActiveBattle(battle: BattleState | undefined): void {
+    if (!battle) {
+        const data = readDatabase()
+        if (data.activeBattles) {
+            if (data.activeBattles.public) {
+                delete data.activeBattles.public
+            }
+            data.activeBattles.private = {}
+        }
+        data.activeBattle = undefined
+        writeDatabase(data)
+        return
+    }
+    
+    if (battle.isPrivate) {
+        setActivePrivateBattle(battle.spaceId, battle)
+    } else {
+        setActivePublicBattle(battle)
+    }
 }
 
 export function finishBattle(battle: BattleState): void {
     const data = readDatabase()
+    battle.status = 'finished'
+    battle.endedAt = Date.now()
+    
+    // Remove from active battles
+    if (data.activeBattles) {
+        if (data.activeBattles.public?.battleId === battle.battleId) {
+            delete data.activeBattles.public
+        }
+        if (data.activeBattles.private && data.activeBattles.private[battle.spaceId]?.battleId === battle.battleId) {
+            delete data.activeBattles.private[battle.spaceId]
+        }
+    }
+    // Legacy cleanup
     if (data.activeBattle?.battleId === battle.battleId) {
         data.activeBattle = undefined
     }
-    battle.status = 'finished'
-    battle.endedAt = Date.now()
+    
     data.pastBattles.push(battle)
     // Keep only last 100 battles
     if (data.pastBattles.length > 100) {
@@ -161,6 +336,33 @@ export function finishBattle(battle: BattleState): void {
 
 export function addParticipant(battleId: string, userId: string): boolean {
     const data = readDatabase()
+    
+    // Check public battle
+    if (data.activeBattles?.public?.battleId === battleId && 
+        (data.activeBattles.public.status === 'collecting' || data.activeBattles.public.status === 'pending_tip' || data.activeBattles.public.status === 'pending_approval')) {
+        if (!data.activeBattles.public.participants.includes(userId)) {
+            data.activeBattles.public.participants.push(userId)
+            writeDatabase(data)
+            return true
+        }
+    }
+    
+    // Check private battles
+    if (data.activeBattles?.private) {
+        for (const spaceId in data.activeBattles.private) {
+            const battle = data.activeBattles.private[spaceId]
+            if (battle?.battleId === battleId && 
+                (battle.status === 'collecting' || battle.status === 'pending_tip' || battle.status === 'pending_approval')) {
+                if (!battle.participants.includes(userId)) {
+                    battle.participants.push(userId)
+                    writeDatabase(data)
+                    return true
+                }
+            }
+        }
+    }
+    
+    // Legacy fallback
     if (data.activeBattle?.battleId === battleId && 
         (data.activeBattle.status === 'collecting' || data.activeBattle.status === 'pending_tip')) {
         if (!data.activeBattle.participants.includes(userId)) {
@@ -169,6 +371,7 @@ export function addParticipant(battleId: string, userId: string): boolean {
             return true
         }
     }
+    
     return false
 }
 

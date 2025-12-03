@@ -70,12 +70,10 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
     
     // For public battles, broadcast to all tracked channels
     if (!isPrivate) {
+        // Get channels after tracking to ensure the current channel is included
         const channels = getPublicBattleChannels()
-        // Also try to discover and track other channels by attempting to send to known spaces
-        // For now, we'll track channels as we successfully send to them
-        const channelsToBroadcast = [...channels]
         
-        for (const channel of channelsToBroadcast) {
+        for (const channel of channels) {
             try {
                 // Determine if this is the originating town or another town
                 const isOriginatingTown = channel.spaceId === spaceId

@@ -45,6 +45,8 @@ interface BattleData {
     lastEthPrice?: number
     lastEthPriceTimestamp?: number
     playerStats: Record<string, PlayerStats> // userId -> stats
+    publicBattleChannels?: Array<{ channelId: string; spaceId: string; spaceName?: string }> // Channels to announce public battles
+    spaceNames?: Record<string, string> // spaceId -> spaceName
 }
 
 const DEFAULT_FIGHT_EVENTS = [
@@ -120,6 +122,12 @@ function readDatabase(): BattleData {
             if (!parsed.playerStats) {
                 parsed.playerStats = {}
             }
+            if (!parsed.publicBattleChannels) {
+                parsed.publicBattleChannels = []
+            }
+            if (!parsed.spaceNames) {
+                parsed.spaceNames = {}
+            }
             // Migrate old structure to new structure
             if (!parsed.activeBattles) {
                 parsed.activeBattles = { private: {} }
@@ -136,7 +144,7 @@ function readDatabase(): BattleData {
             return parsed
         } catch (error) {
             console.error('Error reading database:', error)
-            return { pastBattles: [], fightEvents: DEFAULT_FIGHT_EVENTS, playerStats: {}, activeBattles: { private: {} } }
+            return { pastBattles: [], fightEvents: DEFAULT_FIGHT_EVENTS, playerStats: {}, activeBattles: { private: {} }, publicBattleChannels: [], spaceNames: {} }
         }
     }
     return { pastBattles: [], fightEvents: DEFAULT_FIGHT_EVENTS, playerStats: {}, activeBattles: { private: {} } }
@@ -478,6 +486,50 @@ export function getTopPlayers(sortBy: 'battles' | 'wins' | 'kills' | 'deaths' | 
         .sort((a, b) => b[sortBy] - a[sortBy])
         .slice(0, limit)
         .filter(player => player[sortBy] > 0) // Only show players with stats > 0
+}
+
+/**
+ * Track a channel for public battle announcements
+ */
+export function trackChannelForPublicBattles(channelId: string, spaceId: string, spaceName?: string): void {
+    const data = readDatabase()
+    if (!data.publicBattleChannels) {
+        data.publicBattleChannels = []
+    }
+    if (!data.spaceNames) {
+        data.spaceNames = {}
+    }
+    
+    // Check if channel already tracked
+    const existing = data.publicBattleChannels.find(c => c.channelId === channelId)
+    if (!existing) {
+        data.publicBattleChannels.push({ channelId, spaceId, spaceName })
+    } else if (spaceName) {
+        existing.spaceName = spaceName
+    }
+    
+    // Update space name mapping
+    if (spaceName) {
+        data.spaceNames[spaceId] = spaceName
+    }
+    
+    writeDatabase(data)
+}
+
+/**
+ * Get all channels where public battles should be announced
+ */
+export function getPublicBattleChannels(): Array<{ channelId: string; spaceId: string; spaceName?: string }> {
+    const data = readDatabase()
+    return data.publicBattleChannels || []
+}
+
+/**
+ * Get space name by spaceId
+ */
+export function getSpaceName(spaceId: string): string | undefined {
+    const data = readDatabase()
+    return data.spaceNames?.[spaceId]
 }
 
 // Initialize database on first load

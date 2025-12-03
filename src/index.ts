@@ -368,6 +368,9 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
 })
 
 bot.onSlashCommand('cancel', async (handler, { channelId, spaceId, userId }) => {
+    // Track channel for public battle announcements
+    trackChannelForPublicBattles(channelId, spaceId)
+    
     // Check if user is admin
     const isAdmin = await canStartBattle(handler, userId, spaceId)
     if (!isAdmin) {
@@ -429,6 +432,9 @@ bot.onSlashCommand('cancel', async (handler, { channelId, spaceId, userId }) => 
 })
 
 bot.onSlashCommand('test', async (handler, { channelId, spaceId, userId }) => {
+    // Track channel for public battle announcements
+    trackChannelForPublicBattles(channelId, spaceId)
+    
     // Check if user is admin
     const isAdmin = await canStartBattle(handler, userId, spaceId)
     if (!isAdmin) {
@@ -574,6 +580,9 @@ bot.onInteractionResponse(async (handler, { response, channelId, userId }) => {
 })
 
 bot.onReaction(async (handler, { reaction, channelId, userId, spaceId }) => {
+    // Track channel for public battle announcements
+    trackChannelForPublicBattles(channelId, spaceId)
+    
     // Handle sword emoji for battle participation
     if (reaction === '⚔️') {
         const battle = getActiveBattle()
@@ -798,7 +807,10 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
     }
 })
 
-bot.onSlashCommand('leaderboard', async (handler, { channelId }) => {
+bot.onSlashCommand('leaderboard', async (handler, { channelId, spaceId }) => {
+    // Track channel for public battle announcements
+    trackChannelForPublicBattles(channelId, spaceId)
+    
     const { getTopPlayers } = await import('./db')
     
     const topPlayers = getTopPlayers('battles', 10)

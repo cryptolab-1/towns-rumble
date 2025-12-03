@@ -1,5 +1,5 @@
 import type { BotHandler } from '@towns-protocol/bot'
-import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, incrementPlayerStat } from './db'
+import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, incrementPlayerStat, getPublicBattleChannels } from './db'
 import { getTipAmountRange } from './ethPrice'
 
 const SWORD_EMOJI = '⚔️'
@@ -307,11 +307,30 @@ export async function startBattleLoop(
             }
         }
         
-        // Send fight message inside the battle thread (if any) without quoting the root message
-        const sendOpts = currentBattle.threadId
-            ? { threadId: currentBattle.threadId }
-            : undefined
-        await bot.sendMessage(battle.channelId, roundMessage, sendOpts)
+        // For public battles, broadcast to all tracked channels
+        // For private battles, only send to the original channel
+        if (currentBattle.isPrivate) {
+            // Private battle - only send to original channel in thread
+            const sendOpts = currentBattle.threadId
+                ? { threadId: currentBattle.threadId }
+                : undefined
+            await bot.sendMessage(battle.channelId, roundMessage, sendOpts)
+        } else {
+            // Public battle - broadcast to all tracked channels
+            const channels = getPublicBattleChannels()
+            for (const channel of channels) {
+                try {
+                    // Original channel uses the thread, others are regular messages
+                    if (channel.channelId === battle.channelId && currentBattle.threadId) {
+                        await bot.sendMessage(channel.channelId, roundMessage, { threadId: currentBattle.threadId })
+                    } else {
+                        await bot.sendMessage(channel.channelId, roundMessage)
+                    }
+                } catch (error) {
+                    console.error(`Error broadcasting round to channel ${channel.channelId}:`, error)
+                }
+            }
+        }
         
         participants = participants.filter(p => !eliminated.has(p))
     }
@@ -351,23 +370,61 @@ export async function startBattleLoop(
                     ? `🥇 1st: <@${finalBattle.winners[0]}>\n🥈 2nd: <@${finalBattle.winners[1]}>`
                     : `🥇 1st: <@${finalBattle.winners[0]}>\n🥈 2nd: <@${finalBattle.winners[1]}>\n🥉 3rd: <@${finalBattle.winners[2]}>`
 
-                const sendOpts = finalBattle.threadId
-                    ? { threadId: finalBattle.threadId }
-                    : undefined
-
-                await bot.sendMessage(
-                    battle.channelId,
-                    `🏆 **BATTLE ROYALE COMPLETE!** 🏆\n\n${winnerText}\n\nThanks to all participants for an epic battle!`,
-                    sendOpts
-                )
+                // For public battles, broadcast to all tracked channels
+                if (finalBattle.isPrivate) {
+                    // Private battle - only send to original channel in thread
+                    const sendOpts = finalBattle.threadId
+                        ? { threadId: finalBattle.threadId }
+                        : undefined
+                    await bot.sendMessage(
+                        battle.channelId,
+                        `🏆 **BATTLE ROYALE COMPLETE!** 🏆\n\n${winnerText}\n\nThanks to all participants for an epic battle!`,
+                        sendOpts
+                    )
+                } else {
+                    // Public battle - broadcast to all tracked channels
+                    const channels = getPublicBattleChannels()
+                    const finalMessage = `🏆 **BATTLE ROYALE COMPLETE!** 🏆\n\n${winnerText}\n\nThanks to all participants for an epic battle!`
+                    for (const channel of channels) {
+                        try {
+                            // Original channel uses the thread, others are regular messages
+                            if (channel.channelId === battle.channelId && finalBattle.threadId) {
+                                await bot.sendMessage(channel.channelId, finalMessage, { threadId: finalBattle.threadId })
+                            } else {
+                                await bot.sendMessage(channel.channelId, finalMessage)
+                            }
+                        } catch (error) {
+                            console.error(`Error broadcasting final message to channel ${channel.channelId}:`, error)
+                        }
+                    }
+                }
             }
         } else {
             // Edge case: no winner
             finishBattle(finalBattle)
-            const sendOpts = finalBattle.threadId
-                ? { threadId: finalBattle.threadId }
-                : undefined
-            await bot.sendMessage(battle.channelId, '⚔️ The battle ended with no clear winner.', sendOpts)
+            if (finalBattle.isPrivate) {
+                // Private battle - only send to original channel in thread
+                const sendOpts = finalBattle.threadId
+                    ? { threadId: finalBattle.threadId }
+                    : undefined
+                await bot.sendMessage(battle.channelId, '⚔️ The battle ended with no clear winner.', sendOpts)
+            } else {
+                // Public battle - broadcast to all tracked channels
+                const channels = getPublicBattleChannels()
+                const noWinnerMessage = '⚔️ The battle ended with no clear winner.'
+                for (const channel of channels) {
+                    try {
+                        // Original channel uses the thread, others are regular messages
+                        if (channel.channelId === battle.channelId && finalBattle.threadId) {
+                            await bot.sendMessage(channel.channelId, noWinnerMessage, { threadId: finalBattle.threadId })
+                        } else {
+                            await bot.sendMessage(channel.channelId, noWinnerMessage)
+                        }
+                    } catch (error) {
+                        console.error(`Error broadcasting no winner message to channel ${channel.channelId}:`, error)
+                    }
+                }
+            }
         }
     }
 }
@@ -473,12 +530,34 @@ async function distributeRewards(bot: any, battle: any): Promise<void> {
             }
         }
         
-        await bot.sendMessage(
-            battle.channelId,
-            `🏆 **BATTLE ROYALE COMPLETE!** 🏆\n\n${winnerText}\n` +
+        // For public battles, broadcast to all tracked channels
+        const finalMessage = `🏆 **BATTLE ROYALE COMPLETE!** 🏆\n\n${winnerText}\n` +
             `✅ Rewards distributed! Transaction: \`${txHash}\`\n\n` +
             `Thanks to all participants for an epic battle!`
-        )
+        
+        if (battle.isPrivate) {
+            // Private battle - only send to original channel in thread
+            const sendOpts = battle.threadId
+                ? { threadId: battle.threadId }
+                : undefined
+            await bot.sendMessage(battle.channelId, finalMessage, sendOpts)
+        } else {
+            // Public battle - broadcast to all tracked channels
+            const { getPublicBattleChannels } = await import('./db')
+            const channels = getPublicBattleChannels()
+            for (const channel of channels) {
+                try {
+                    // Original channel uses the thread, others are regular messages
+                    if (channel.channelId === battle.channelId && battle.threadId) {
+                        await bot.sendMessage(channel.channelId, finalMessage, { threadId: battle.threadId })
+                    } else {
+                        await bot.sendMessage(channel.channelId, finalMessage)
+                    }
+                } catch (error) {
+                    console.error(`Error broadcasting final message to channel ${channel.channelId}:`, error)
+                }
+            }
+        }
         
         // Mark rewards as distributed
         battle.rewardDistributed = true
@@ -490,11 +569,22 @@ async function distributeRewards(bot: any, battle: any): Promise<void> {
         }
     } catch (error) {
         console.error('Error distributing rewards:', error)
-        await bot.sendMessage(
-            battle.channelId,
-            `❌ Error distributing rewards. Please contact an admin.\n\n` +
+        const errorMessage = `❌ Error distributing rewards. Please contact an admin.\n\n` +
             `Winners: ${battle.winners.map((w: string) => `<@${w}>`).join(', ')}`
-        )
+        
+        if (battle.isPrivate) {
+            await bot.sendMessage(battle.channelId, errorMessage)
+        } else {
+            // Broadcast error to all channels
+            const channels = getPublicBattleChannels()
+            for (const channel of channels) {
+                try {
+                    await bot.sendMessage(channel.channelId, errorMessage)
+                } catch (err) {
+                    console.error(`Error broadcasting error message to channel ${channel.channelId}:`, err)
+                }
+            }
+        }
     }
 }
 

@@ -49,31 +49,33 @@ export function handleReaction(
     userId: string,
     reaction: string,
     channelId: string,
-    spaceId?: string
+    spaceId?: string,
+    battle?: BattleState
 ): boolean {
     if (reaction !== SWORD_EMOJI) return false
     
-    // For public battles, check first (works from any town)
-    // For private battles, check the specific space's battle
-    let battle: BattleState | undefined
-    
-    // Check public battle first (can be joined from any town)
-    const publicBattle = getActivePublicBattle()
-    if (publicBattle && !publicBattle.isPrivate) {
-        battle = publicBattle
-    }
-    
-    // If no public battle, check private battle for this space
-    if (!battle && spaceId) {
-        const privateBattle = getActivePrivateBattle(spaceId)
-        if (privateBattle && privateBattle.channelId === channelId) {
-            battle = privateBattle
-        }
-    }
-    
-    // Fallback: search by channelId (for backward compatibility or same-channel battles)
+    // If battle is not provided, try to find it
     if (!battle) {
-        battle = getBattleByChannelId(channelId)
+        // For public battles, check first (works from any town)
+        // For private battles, check the specific space's battle
+        // Check public battle first (can be joined from any town)
+        const publicBattle = getActivePublicBattle()
+        if (publicBattle && !publicBattle.isPrivate) {
+            battle = publicBattle
+        }
+        
+        // If no public battle, check private battle for this space
+        if (!battle && spaceId) {
+            const privateBattle = getActivePrivateBattle(spaceId)
+            if (privateBattle && privateBattle.channelId === channelId) {
+                battle = privateBattle
+            }
+        }
+        
+        // Fallback: search by channelId (for backward compatibility or same-channel battles)
+        if (!battle) {
+            battle = getBattleByChannelId(channelId)
+        }
     }
     
     if (!battle) {

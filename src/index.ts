@@ -716,7 +716,7 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId }) => {
         }
         if (!battle) return
         
-        const joined = handleReaction(handler, userId, reaction, channelId, spaceId)
+        const joined = handleReaction(handler, userId, reaction, channelId, spaceId, battle)
         if (joined) {
             // Get fresh battle state to get accurate participant count
             const freshBattle = getActivePublicBattle() || getActivePrivateBattle(spaceId || '') || battle

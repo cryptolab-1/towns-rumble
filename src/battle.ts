@@ -64,9 +64,11 @@ export function handleReaction(
     }
     
     // If no private battle found, check public battle
+    // For public battles, allow joining from ANY channel (cross-town participation)
     if (!battle) {
         const publicBattle = getActivePublicBattle()
-        if (publicBattle && publicBattle.channelId === channelId) {
+        // Don't check channelId - public battles can be joined from any town
+        if (publicBattle && !publicBattle.isPrivate) {
             battle = publicBattle
         }
     }

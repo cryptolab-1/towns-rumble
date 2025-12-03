@@ -730,19 +730,25 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId }) => {
         const joined = handleReaction(handler, userId, reaction, channelId, spaceId, battle)
         console.log(`[onReaction] handleReaction returned: ${joined}`)
         if (joined) {
-            // Get fresh battle state to get accurate participant count
-            const freshBattle = getActivePublicBattle() || getActivePrivateBattle(spaceId || '') || battle
+            // Get fresh battle state for THIS specific battle to get accurate participant count
+            const freshBattle = battle.isPrivate 
+                ? getActivePrivateBattle(battle.spaceId) 
+                : getActivePublicBattle()
+            const finalBattle = freshBattle || battle
             await handler.sendMessage(
                 channelId,
-                `<@${userId}> has joined the battle! ⚔️ (${freshBattle.participants.length} participants)`
+                `<@${userId}> has joined the battle! ⚔️ (${finalBattle.participants.length} participants)`
             )
         } else {
-            // Check if user is already in the battle (duplicate reaction)
-            const freshBattle = getActivePublicBattle() || getActivePrivateBattle(spaceId || '') || battle
-            if (freshBattle && freshBattle.participants.includes(userId)) {
+            // Check if user is already in THIS SPECIFIC battle (not any battle)
+            const freshBattle = battle.isPrivate 
+                ? getActivePrivateBattle(battle.spaceId) 
+                : getActivePublicBattle()
+            const finalBattle = freshBattle || battle
+            if (finalBattle && finalBattle.battleId === battle.battleId && finalBattle.participants.includes(userId)) {
                 await handler.sendMessage(
                     channelId,
-                    `ℹ️ You're already in the battle! ⚔️ (${freshBattle.participants.length} participants)`
+                    `ℹ️ You're already in this battle! ⚔️ (${finalBattle.participants.length} participants)`
                 )
             } else {
                 // Check if it's a private battle and user tried to join from wrong town

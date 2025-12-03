@@ -714,17 +714,38 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
             setActiveBattle(currentBattle)
         }
 
-        await handler.sendMessage(
-            channelId,
-            `⚔️ **BATTLE STARTING!** ⚔️\n\n` +
+        const battleStartMessage = `⚔️ **BATTLE STARTING!** ⚔️\n\n` +
             `**${currentBattle.participants.length} fighters** are entering the arena!\n` +
             (currentBattle.rewardAmount ? `💰 **Reward Pool:** ${(await import('./token')).formatTokenAmount(BigInt(currentBattle.rewardAmount))} TOWNS\n` : '') +
-            `\nLet the battle begin! 🗡️`,
-            {
-                // Start the thread under the tip message (messageId)
-                threadId: messageId,
+            `\nLet the battle begin! 🗡️`
+
+        if (currentBattle.isPrivate) {
+            // Private battle - only send to original channel in thread
+            await handler.sendMessage(
+                channelId,
+                battleStartMessage,
+                {
+                    threadId: messageId,
+                }
+            )
+        } else {
+            // Public battle - broadcast to all tracked channels
+            // Original channel uses thread, other channels go to main chat
+            const channels = getPublicBattleChannels()
+            for (const channel of channels) {
+                try {
+                    if (channel.channelId === channelId) {
+                        // Original channel - use tip message as thread root
+                        await handler.sendMessage(channelId, battleStartMessage, { threadId: messageId })
+                    } else {
+                        // Other channels - send to main chat
+                        await bot.sendMessage(channel.channelId, battleStartMessage)
+                    }
+                } catch (error) {
+                    console.error(`Error broadcasting battle start to channel ${channel.channelId}:`, error)
+                }
             }
-        )
+        }
 
         // Start battle loop in background (identify battle by channel)
         startBattleLoop(bot, channelId).catch((error) => {

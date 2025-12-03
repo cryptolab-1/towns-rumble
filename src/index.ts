@@ -563,26 +563,32 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
     const tipHandled = await handleTip(handler, userId, amount, channelId)
     
     if (tipHandled) {
-        if (battle.participants.length < 2) {
+        // Re-fetch the latest battle state from the database (handleTip may have updated it)
+        const freshBattle = (await import('./db')).getBattleByChannelId(channelId) || battle
+        
+        // Use the fresh battle object from here on
+        const currentBattle = freshBattle
+
+        if (currentBattle.participants.length < 2) {
             await handler.sendMessage(
                 channelId,
                 '❌ Need at least 2 participants to start the battle!'
             )
             // Reset battle status
-            battle.status = 'collecting'
+            currentBattle.status = 'collecting'
             const { setActiveBattle } = await import('./db')
-            setActiveBattle(battle)
+            setActiveBattle(currentBattle)
             return
         }
 
         // If rewards are set, verify approval one more time
-        if (battle.rewardAmount && BigInt(battle.rewardAmount) > 0n) {
+        if (currentBattle.rewardAmount && BigInt(currentBattle.rewardAmount) > 0n) {
             const { getSmartAccountFromUserId } = await import('@towns-protocol/bot')
             const { checkTokenApproval } = await import('./token')
             
             try {
-                const adminWallet = (await getSmartAccountFromUserId(bot, { userId: battle.adminId as `0x${string}` })) as `0x${string}`
-                const requiredAmount = BigInt(battle.rewardAmount)
+                const adminWallet = (await getSmartAccountFromUserId(bot, { userId: currentBattle.adminId as `0x${string}` })) as `0x${string}`
+                const requiredAmount = BigInt(currentBattle.rewardAmount)
                 const botAddress = bot.appAddress as `0x${string}`
                 
                 const isApproved = await checkTokenApproval(
@@ -597,9 +603,9 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
                         channelId,
                         `❌ Token approval required before starting battle. Please approve ${(await import('./token')).formatTokenAmount(requiredAmount)} TOWNS tokens.`
                     )
-                    battle.status = 'pending_approval'
+                    currentBattle.status = 'pending_approval'
                     const { setActiveBattle } = await import('./db')
-                    setActiveBattle(battle)
+                    setActiveBattle(currentBattle)
                     return
                 }
             } catch (error) {
@@ -614,17 +620,17 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
 
         // Use the tip message as the thread root so all battle messages are grouped
         // Store threadId on the battle so the loop can reply inside this thread
-        battle.threadId = messageId
+        currentBattle.threadId = messageId
         {
             const { setActiveBattle } = await import('./db')
-            setActiveBattle(battle)
+            setActiveBattle(currentBattle)
         }
 
         await handler.sendMessage(
             channelId,
             `⚔️ **BATTLE STARTING!** ⚔️\n\n` +
-            `**${battle.participants.length} fighters** are entering the arena!\n` +
-            (battle.rewardAmount ? `💰 **Reward Pool:** ${(await import('./token')).formatTokenAmount(BigInt(battle.rewardAmount))} TOWNS\n` : '') +
+            `**${currentBattle.participants.length} fighters** are entering the arena!\n` +
+            (currentBattle.rewardAmount ? `💰 **Reward Pool:** ${(await import('./token')).formatTokenAmount(BigInt(currentBattle.rewardAmount))} TOWNS\n` : '') +
             `\nLet the battle begin! 🗡️`,
             {
                 // Start the thread under the tip message (messageId)

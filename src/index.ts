@@ -778,12 +778,15 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId, messageId
                     // Add reaction to announcement message in other towns if we have the eventId
                     if (channel.announcementEventId) {
                         try {
-                            // Use bot.sendReaction if available, otherwise try handler
-                            // Note: handler.sendReaction only works for current channel, so we need bot instance
-                            // For now, we'll try to use a workaround or accept that reactions can't be synced
-                            // Actually, we can't easily send reactions to other channels from the handler context
-                            // This would require the bot instance to have a sendReaction method
-                            console.log(`[onReaction] Would add reaction to announcement ${channel.announcementEventId} in channel ${channel.channelId}`)
+                            // Try using bot.sendReaction if the method exists
+                            // The bot instance should have access to sendReaction if available in Towns Protocol
+                            if (typeof (bot as any).sendReaction === 'function') {
+                                await (bot as any).sendReaction(channel.channelId, channel.announcementEventId, 'crossed_swords')
+                                console.log(`[onReaction] Successfully added reaction to announcement ${channel.announcementEventId} in channel ${channel.channelId}`)
+                            } else {
+                                // If bot.sendReaction doesn't exist, log for debugging
+                                console.log(`[onReaction] bot.sendReaction not available, cannot sync reaction to channel ${channel.channelId}`)
+                            }
                         } catch (error) {
                             console.error(`[onReaction] Error adding reaction to channel ${channel.channelId}:`, error)
                         }

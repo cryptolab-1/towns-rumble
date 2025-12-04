@@ -361,6 +361,7 @@ export function addParticipant(battleId: string, userId: string): boolean {
             return true
         } else {
             console.log(`[addParticipant] User already in public battle`)
+            return false // User is already in this battle
         }
     }
     
@@ -374,6 +375,9 @@ export function addParticipant(battleId: string, userId: string): boolean {
                     battle.participants.push(userId)
                     writeDatabase(data)
                     return true
+                } else {
+                    console.log(`[addParticipant] User already in private battle`)
+                    return false // User is already in this battle
                 }
             }
         }

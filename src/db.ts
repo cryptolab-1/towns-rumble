@@ -498,7 +498,7 @@ export function getTopPlayers(sortBy: 'battles' | 'wins' | 'kills' | 'deaths' | 
 /**
  * Track a channel for public battle announcements
  */
-export function trackChannelForPublicBattles(channelId: string, spaceId: string, spaceName?: string): void {
+export function trackChannelForPublicBattles(channelId: string, spaceId: string, spaceName?: string, announcementEventId?: string): void {
     const data = readDatabase()
     if (!data.publicBattleChannels) {
         data.publicBattleChannels = []
@@ -510,9 +510,14 @@ export function trackChannelForPublicBattles(channelId: string, spaceId: string,
     // Check if channel already tracked
     const existing = data.publicBattleChannels.find(c => c.channelId === channelId)
     if (!existing) {
-        data.publicBattleChannels.push({ channelId, spaceId, spaceName })
-    } else if (spaceName) {
-        existing.spaceName = spaceName
+        data.publicBattleChannels.push({ channelId, spaceId, spaceName, announcementEventId })
+    } else {
+        if (spaceName) {
+            existing.spaceName = spaceName
+        }
+        if (announcementEventId) {
+            existing.announcementEventId = announcementEventId
+        }
     }
     
     // Update space name mapping

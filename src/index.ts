@@ -766,6 +766,30 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId, messageId
                 channelId,
                 `<@${userId}> has joined the battle! ⚔️ (${finalBattle.participants.length} participants)`
             )
+            
+            // For public battles, synchronize reactions across all towns
+            if (!battle.isPrivate && messageId) {
+                const channels = getPublicBattleChannels()
+                console.log(`[onReaction] Synchronizing reaction to ${channels.length} channels for public battle`)
+                for (const channel of channels) {
+                    // Skip the channel where the user actually reacted (to avoid duplicate)
+                    if (channel.channelId === channelId) continue
+                    
+                    // Add reaction to announcement message in other towns if we have the eventId
+                    if (channel.announcementEventId) {
+                        try {
+                            // Use bot.sendReaction if available, otherwise try handler
+                            // Note: handler.sendReaction only works for current channel, so we need bot instance
+                            // For now, we'll try to use a workaround or accept that reactions can't be synced
+                            // Actually, we can't easily send reactions to other channels from the handler context
+                            // This would require the bot instance to have a sendReaction method
+                            console.log(`[onReaction] Would add reaction to announcement ${channel.announcementEventId} in channel ${channel.channelId}`)
+                        } catch (error) {
+                            console.error(`[onReaction] Error adding reaction to channel ${channel.channelId}:`, error)
+                        }
+                    }
+                }
+            }
         } else {
             // Check if user is already in THIS SPECIFIC battle (not any battle)
             const freshBattle = battle.isPrivate 

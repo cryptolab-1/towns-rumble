@@ -531,7 +531,7 @@ export function trackChannelForPublicBattles(channelId: string, spaceId: string,
 /**
  * Get all channels where public battles should be announced
  */
-export function getPublicBattleChannels(): Array<{ channelId: string; spaceId: string; spaceName?: string }> {
+export function getPublicBattleChannels(): Array<{ channelId: string; spaceId: string; spaceName?: string; announcementEventId?: string }> {
     const data = readDatabase()
     return data.publicBattleChannels || []
 }

@@ -7,7 +7,7 @@ import {
     handleTip,
     startBattleLoop,
 } from './battle'
-import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActivePublicBattle, setActivePrivateBattle, trackChannelForPublicBattles, getPublicBattleChannels, type BattleState } from './db'
+import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActivePublicBattle, setActivePrivateBattle, trackChannelForPublicBattles, getPublicBattleChannels, getBattleIdByMessageId, setMessageIdToBattleId, getBattleByBattleId, type BattleState } from './db'
 
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,
@@ -99,9 +99,14 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
                         `⚔️ The Battle will start soon`
                 }
                 
-                await bot.sendMessage(channel.channelId, battleMessage)
+                const sentMessage = await bot.sendMessage(channel.channelId, battleMessage)
+                // Store messageId -> battleId mapping for reactions
+                if (sentMessage?.eventId) {
+                    setMessageIdToBattleId(sentMessage.eventId, battleId)
+                    console.log(`[rumble] Stored messageId mapping: ${sentMessage.eventId} -> ${battleId}`)
+                }
                 // Track channel if message was sent successfully (in case it wasn't already tracked)
-                trackChannelForPublicBattles(channel.channelId, channel.spaceId, channel.spaceName)
+                trackChannelForPublicBattles(channel.channelId, channel.spaceId, channel.spaceName, sentMessage?.eventId)
             } catch (error) {
                 console.error(`Error broadcasting to channel ${channel.channelId}:`, error)
                 // If sending fails, the channel might not exist or bot might not have access
@@ -116,7 +121,12 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
             `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
             `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
         
-        await handler.sendMessage(channelId, battleMessage)
+        const sentMessage = await handler.sendMessage(channelId, battleMessage)
+        // Store messageId -> battleId mapping for reactions
+        if (sentMessage?.eventId) {
+            setMessageIdToBattleId(sentMessage.eventId, battleId)
+            console.log(`[rumble] Stored messageId mapping: ${sentMessage.eventId} -> ${battleId}`)
+        }
     }
 
     // Update battle status to pending tip
@@ -306,9 +316,14 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                                 `⚔️ The Battle will start soon`
                         }
                         
-                        await bot.sendMessage(channel.channelId, battleMessage)
+                        const sentMessage = await bot.sendMessage(channel.channelId, battleMessage)
+                        // Store messageId -> battleId mapping for reactions
+                        if (sentMessage?.eventId) {
+                            setMessageIdToBattleId(sentMessage.eventId, battleId)
+                            console.log(`[rumble_reward] Stored messageId mapping: ${sentMessage.eventId} -> ${battleId}`)
+                        }
                         // Track channel if message was sent successfully (in case it wasn't already tracked)
-                        trackChannelForPublicBattles(channel.channelId, channel.spaceId, channel.spaceName)
+                        trackChannelForPublicBattles(channel.channelId, channel.spaceId, channel.spaceName, sentMessage?.eventId)
                     } catch (error) {
                         console.error(`Error broadcasting to channel ${channel.channelId}:`, error)
                     }
@@ -323,7 +338,12 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                     `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
                     `Once approved, tip me **$1 USD worth of ETH** to launch the battle!`
                 
-                await handler.sendMessage(channelId, battleMessage)
+                const sentMessage = await handler.sendMessage(channelId, battleMessage)
+                // Store messageId -> battleId mapping for reactions
+                if (sentMessage?.eventId) {
+                    setMessageIdToBattleId(sentMessage.eventId, battleId)
+                    console.log(`[rumble_reward] Stored messageId mapping: ${sentMessage.eventId} -> ${battleId}`)
+                }
             }
             return
         }
@@ -370,7 +390,12 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                         `⚔️ The Battle will start soon`
                 }
                 
-                await bot.sendMessage(channel.channelId, battleMessage)
+                const sentMessage = await bot.sendMessage(channel.channelId, battleMessage)
+                // Store messageId -> battleId mapping for reactions
+                if (sentMessage?.eventId) {
+                    setMessageIdToBattleId(sentMessage.eventId, battleId)
+                    console.log(`[rumble_reward] Stored messageId mapping: ${sentMessage.eventId} -> ${battleId}`)
+                }
             } catch (error) {
                 console.error(`Error broadcasting to channel ${channel.channelId}:`, error)
             }
@@ -384,7 +409,12 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
             `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
             `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
         
-        await handler.sendMessage(channelId, battleMessage)
+        const sentMessage = await handler.sendMessage(channelId, battleMessage)
+        // Store messageId -> battleId mapping for reactions
+        if (sentMessage?.eventId) {
+            setMessageIdToBattleId(sentMessage.eventId, battleId)
+            console.log(`[rumble_reward] Stored messageId mapping: ${sentMessage.eventId} -> ${battleId}`)
+        }
     }
 
     // Update battle status to pending tip
@@ -717,33 +747,16 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId, messageId
         let battle: BattleState | undefined = undefined
         
         if (messageId) {
-            // For public battles, check all tracked channels to see if any has this messageId as announcementEventId
-            const publicBattle = getActivePublicBattle()
-            if (publicBattle) {
-                const channels = getPublicBattleChannels()
-                const matchingChannel = channels.find(ch => ch.announcementEventId === messageId)
-                if (matchingChannel) {
-                    battle = publicBattle
-                    console.log(`[onReaction] Found public battle by announcementEventId in channel ${matchingChannel.channelId}: ${battle.battleId}`)
-                } else if (publicBattle.announcementEventId === messageId) {
-                    // Fallback: check battle's own announcementEventId (for originating channel)
-                    battle = publicBattle
-                    console.log(`[onReaction] Found public battle by announcementEventId: ${battle.battleId}`)
-                }
-            }
-            
-            // Check private battle for this space
-            if (!battle && spaceId) {
-                const privateBattle = getActivePrivateBattle(spaceId)
-                if (privateBattle && privateBattle.announcementEventId === messageId) {
-                    battle = privateBattle
-                    console.log(`[onReaction] Found private battle by announcementEventId: ${battle.battleId}`)
-                }
+            // Direct lookup: messageId -> battleId
+            const battleId = getBattleIdByMessageId(messageId)
+            if (battleId) {
+                battle = getBattleByBattleId(battleId)
+                console.log(`[onReaction] Found battle by messageId mapping: ${battleId} -> ${battle ? battle.battleId : 'not found'}`)
             }
         }
         
-        // Fallback: if no battle found by messageId, try finding by space/channel
-        // (for backward compatibility or if announcementEventId wasn't stored)
+        // Fallback: if no battle found by messageId mapping, try finding by space/channel
+        // (for backward compatibility or if mapping wasn't stored)
         if (!battle) {
             if (spaceId) {
                 battle = getActivePrivateBattle(spaceId)

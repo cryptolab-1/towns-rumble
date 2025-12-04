@@ -48,6 +48,7 @@ interface BattleData {
     playerStats: Record<string, PlayerStats> // userId -> stats
     publicBattleChannels?: Array<{ channelId: string; spaceId: string; spaceName?: string; announcementEventId?: string }> // Channels to announce public battles, with announcement message eventId
     spaceNames?: Record<string, string> // spaceId -> spaceName
+    messageIdToBattleId?: Record<string, string> // messageId (announcement eventId) -> battleId
 }
 
 const DEFAULT_FIGHT_EVENTS = [
@@ -542,6 +543,37 @@ export function getPublicBattleChannels(): Array<{ channelId: string; spaceId: s
 export function getSpaceName(spaceId: string): string | undefined {
     const data = readDatabase()
     return data.spaceNames?.[spaceId]
+}
+
+/**
+ * Map a messageId (announcement eventId) to a battleId
+ */
+export function setMessageIdToBattleId(messageId: string, battleId: string): void {
+    const data = readDatabase()
+    if (!data.messageIdToBattleId) {
+        data.messageIdToBattleId = {}
+    }
+    data.messageIdToBattleId[messageId] = battleId
+    writeDatabase(data)
+}
+
+/**
+ * Get battleId by messageId (announcement eventId)
+ */
+export function getBattleIdByMessageId(messageId: string): string | undefined {
+    const data = readDatabase()
+    return data.messageIdToBattleId?.[messageId]
+}
+
+/**
+ * Remove messageId mapping (when battle ends)
+ */
+export function removeMessageIdMapping(messageId: string): void {
+    const data = readDatabase()
+    if (data.messageIdToBattleId && messageId in data.messageIdToBattleId) {
+        delete data.messageIdToBattleId[messageId]
+        writeDatabase(data)
+    }
 }
 
 // Initialize database on first load

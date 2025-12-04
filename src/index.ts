@@ -298,10 +298,11 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                                 `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
                                 `Once approved, tip me **$1 USD worth of ETH** to launch the battle!`
                         } else {
-                            // Other towns get simplified message
+                            // Other towns get simplified message, but with reward pool
                             battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
                                 `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
                                 `React with ⚔️ to join the battle!\n\n` +
+                                `💰 **Reward Pool:** ${formatTokenAmount(requiredAmount)} TOWNS\n\n` +
                                 `⚔️ The Battle will start soon`
                         }
                         
@@ -361,10 +362,11 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                         `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
                         `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
                 } else {
-                    // Other towns get simplified message
+                    // Other towns get simplified message, but with reward pool
                     battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
                         `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
                         `React with ⚔️ to join the battle!\n\n` +
+                        `💰 **Reward Pool:** ${formatTokenAmount(requiredAmount)} TOWNS\n\n` +
                         `⚔️ The Battle will start soon`
                 }
                 
@@ -762,34 +764,21 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId, messageId
                 ? getActivePrivateBattle(battle.spaceId) 
                 : getActivePublicBattle()
             const finalBattle = freshBattle || battle
-            await handler.sendMessage(
-                channelId,
-                `<@${userId}> has joined the battle! ⚔️ (${finalBattle.participants.length} participants)`
-            )
-            
-            // For public battles, synchronize reactions across all towns
-            if (!battle.isPrivate && messageId) {
+
+            const joinMessage = `<@${userId}> has joined the battle! ⚔️ (${finalBattle.participants.length} participants)`
+
+            if (battle.isPrivate) {
+                // Private battle – only notify in the current town/channel
+                await handler.sendMessage(channelId, joinMessage)
+            } else {
+                // Public battle – broadcast join message to all tracked towns
                 const channels = getPublicBattleChannels()
-                console.log(`[onReaction] Synchronizing reaction to ${channels.length} channels for public battle`)
+                console.log(`[onReaction] Broadcasting join message to ${channels.length} channels for public battle`)
                 for (const channel of channels) {
-                    // Skip the channel where the user actually reacted (to avoid duplicate)
-                    if (channel.channelId === channelId) continue
-                    
-                    // Add reaction to announcement message in other towns if we have the eventId
-                    if (channel.announcementEventId) {
-                        try {
-                            // Try using bot.sendReaction if the method exists
-                            // The bot instance should have access to sendReaction if available in Towns Protocol
-                            if (typeof (bot as any).sendReaction === 'function') {
-                                await (bot as any).sendReaction(channel.channelId, channel.announcementEventId, 'crossed_swords')
-                                console.log(`[onReaction] Successfully added reaction to announcement ${channel.announcementEventId} in channel ${channel.channelId}`)
-                            } else {
-                                // If bot.sendReaction doesn't exist, log for debugging
-                                console.log(`[onReaction] bot.sendReaction not available, cannot sync reaction to channel ${channel.channelId}`)
-                            }
-                        } catch (error) {
-                            console.error(`[onReaction] Error adding reaction to channel ${channel.channelId}:`, error)
-                        }
+                    try {
+                        await bot.sendMessage(channel.channelId, joinMessage)
+                    } catch (error) {
+                        console.error(`[onReaction] Error broadcasting join message to channel ${channel.channelId}:`, error)
                     }
                 }
             }

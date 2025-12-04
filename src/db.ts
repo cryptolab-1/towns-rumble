@@ -46,7 +46,7 @@ interface BattleData {
     lastEthPrice?: number
     lastEthPriceTimestamp?: number
     playerStats: Record<string, PlayerStats> // userId -> stats
-    publicBattleChannels?: Array<{ channelId: string; spaceId: string; spaceName?: string }> // Channels to announce public battles
+    publicBattleChannels?: Array<{ channelId: string; spaceId: string; spaceName?: string; announcementEventId?: string }> // Channels to announce public battles, with announcement message eventId
     spaceNames?: Record<string, string> // spaceId -> spaceName
 }
 

@@ -717,13 +717,22 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId, messageId
         let battle: BattleState | undefined = undefined
         
         if (messageId) {
-            // Check all active battles to find which one has this announcement messageId
+            // For public battles, check all tracked channels to see if any has this messageId as announcementEventId
             const publicBattle = getActivePublicBattle()
-            if (publicBattle && publicBattle.announcementEventId === messageId) {
-                battle = publicBattle
-                console.log(`[onReaction] Found public battle by announcementEventId: ${battle.battleId}`)
+            if (publicBattle) {
+                const channels = getPublicBattleChannels()
+                const matchingChannel = channels.find(ch => ch.announcementEventId === messageId)
+                if (matchingChannel) {
+                    battle = publicBattle
+                    console.log(`[onReaction] Found public battle by announcementEventId in channel ${matchingChannel.channelId}: ${battle.battleId}`)
+                } else if (publicBattle.announcementEventId === messageId) {
+                    // Fallback: check battle's own announcementEventId (for originating channel)
+                    battle = publicBattle
+                    console.log(`[onReaction] Found public battle by announcementEventId: ${battle.battleId}`)
+                }
             }
             
+            // Check private battle for this space
             if (!battle && spaceId) {
                 const privateBattle = getActivePrivateBattle(spaceId)
                 if (privateBattle && privateBattle.announcementEventId === messageId) {

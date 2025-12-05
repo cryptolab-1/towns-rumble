@@ -446,10 +446,10 @@ bot.onSlashCommand('cancel', async (handler, { channelId, spaceId, userId }) => 
     // Track channel for public battle announcements
     trackChannelForPublicBattles(channelId, spaceId)
     
-    // Check if user is admin
-    const isAdmin = await canStartBattle(handler, userId, spaceId)
-    if (!isAdmin) {
-        await handler.sendMessage(channelId, '❌ Only admins can cancel a battle!')
+    // Check if user has permission (admin or custom permission)
+    const hasPermission = await canStartBattle(handler, userId, spaceId)
+    if (!hasPermission) {
+        await handler.sendMessage(channelId, '❌ You don\'t have permission to cancel battles!')
         return
     }
 

@@ -22,7 +22,8 @@ export function initiateBattle(
     adminId: string,
     rewardAmount?: string,
     isPrivate: boolean = false,
-    isTest: boolean = false
+    isTest: boolean = false,
+    theme: string = 'default'
 ): string {
     const battleId = `battle-${Date.now()}-${Math.random().toString(36).substring(7)}`
     const battle = {
@@ -41,6 +42,7 @@ export function initiateBattle(
         tipAmount: '0',
         isPrivate,
         isTest,
+        theme,
         createdAt: Date.now(),
     }
     if (isPrivate) {
@@ -181,9 +183,10 @@ export async function startBattleLoop(
     const eliminated = new Set(battle.eliminated)
     let round = battle.currentRound
     
-    const regularEvents = getRegularFightEvents()
-    const reviveEvents = getReviveEvents()
-    const massEvents = getMassEvents()
+    const theme = battle.theme || 'default'
+    const regularEvents = getRegularFightEvents(theme)
+    const reviveEvents = getReviveEvents(theme)
+    const massEvents = getMassEvents(theme)
     
     while (true) {
         // Wait 10 seconds

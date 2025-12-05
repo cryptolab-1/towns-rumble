@@ -19,6 +19,7 @@ export interface BattleState {
     tipAmount: string // Wei as string
     isPrivate: boolean // If true, only participants from the original space can join
     isTest: boolean // If true, this is a test battle and rewards go to admin
+    theme?: string // Battle theme: 'default' or 'christmas'
     threadId?: string // Thread root eventId for battle messages (tip that started the battle)
     announcementEventId?: string // EventId of the announcement message (for reactions)
     createdAt: number
@@ -42,7 +43,8 @@ interface BattleData {
         private: Record<string, BattleState> // spaceId -> BattleState
     }
     pastBattles: BattleState[]
-    fightEvents: string[]
+    fightEvents: string[] // Default theme events
+    themes?: Record<string, string[]> // theme name -> events array
     lastEthPrice?: number
     lastEthPriceTimestamp?: number
     playerStats: Record<string, PlayerStats> // userId -> stats
@@ -122,6 +124,76 @@ const DEFAULT_FIGHT_EVENTS = [
     'MASS_EVENT:Sandstorm',
 ]
 
+const CHRISTMAS_FIGHT_EVENTS = [
+    // Regular fight events (40 total) - Christmas themed
+    '{fighter1} throws a snowball at {fighter2}!',
+    '{fighter1} dodges {fighter2}\'s candy cane strike and counters with a gingerbread cookie!',
+    '{fighter1} and {fighter2} clash with Christmas ornaments!',
+    '{fighter1} parries {fighter2}\'s wreath attack and lands a critical hit!',
+    '{fighter1} uses a spinning attack with a Christmas tree branch!',
+    '{fighter2} blocks {fighter1}\'s present throw and retaliates!',
+    '{fighter1} delivers a devastating combo with mistletoe!',
+    '{fighter1} and {fighter2} engage in an intense snowball fight!',
+    '{fighter1} strikes {fighter2} with a candy cane sword!',
+    '{fighter2} evades {fighter1}\'s reindeer charge and strikes back!',
+    '{fighter1} unleashes a powerful finisher with a Christmas star!',
+    '{fighter1} and {fighter2} trade blows with stockings filled with coal!',
+    '{fighter1} performs a backflip and lands a kick with a Christmas bell!',
+    '{fighter2} sidesteps {fighter1}\'s sleigh ride and delivers a roundhouse!',
+    '{fighter1} throws a series of jabs with tinsel!',
+    '{fighter2} catches {fighter1}\'s arm and executes a throw using a Christmas garland!',
+    '{fighter1} leaps into the air and comes down with a powerful strike using a nutcracker!',
+    '{fighter2} uses a defensive stance with a Christmas wreath and counters {fighter1}\'s advance!',
+    '{fighter1} feints left then strikes right with a candy cane, catching {fighter2} off guard!',
+    '{fighter2} blocks with a Christmas cookie shield and pushes {fighter1} back!',
+    '{fighter1} channels energy and releases a shockwave of Christmas lights at {fighter2}!',
+    '{fighter2} rolls under {fighter1}\'s attack and sweeps their legs with a Christmas tree!',
+    '{fighter1} uses a whirlwind technique with a Santa hat against {fighter2}!',
+    '{fighter2} deflects {fighter1}\'s gingerbread blade with precision!',
+    '{fighter1} performs a triple strike combo with Christmas ornaments!',
+    '{fighter2} uses a counter-attack technique with a Christmas stocking on {fighter1}!',
+    '{fighter1} charges forward with a battle cry and a candy cane lance!',
+    '{fighter2} meets {fighter1}\'s charge head-on with equal force using a Christmas wreath!',
+    '{fighter1} uses a feint to create an opening with a mistletoe branch!',
+    '{fighter2} reads {fighter1}\'s movements and anticipates the attack with a Christmas bell!',
+    '{fighter1} unleashes a flurry of strikes with Christmas cookies!',
+    '{fighter2} weaves through {fighter1}\'s attacks with agility and a candy cane!',
+    '{fighter1} delivers a crushing overhead strike with a nutcracker!',
+    '{fighter2} deflects the blow and spins into a counter with a Christmas star!',
+    '{fighter1} uses a grappling technique with tinsel on {fighter2}!',
+    '{fighter2} breaks free and creates distance using a Christmas garland!',
+    '{fighter1} throws a snowball bomb and strikes from the shadows!',
+    '{fighter2} clears the snow and finds {fighter1} with a Christmas light!',
+    '{fighter1} performs a spinning kick that connects with a candy cane!',
+    '{fighter2} recovers quickly and launches a counter-offensive with a gingerbread sword!',
+    '{fighter1} uses a combination of strikes and kicks with Christmas ornaments!',
+    '{fighter2} blocks and parries with expert timing using a Christmas wreath!',
+    
+    // Revive events (10 total) - Christmas themed
+    'REVIVE:{fighter1} finds a Christmas cookie and is revived back into the battle!',
+    'REVIVE:{fighter2} gets back up with renewed determination thanks to Christmas spirit!',
+    'REVIVE:{fighter1} is resurrected by Santa\'s magic!',
+    'REVIVE:{fighter2} refuses to stay down and rejoins the fight with Christmas cheer!',
+    'REVIVE:{fighter1} uses a Christmas potion and returns to battle!',
+    'REVIVE:{fighter2} is healed by a Christmas elf and continues fighting!',
+    'REVIVE:{fighter1} finds inner strength from the Christmas spirit and gets back up!',
+    'REVIVE:{fighter2} is saved by a Christmas angel and rejoins!',
+    'REVIVE:{fighter1} uses a second wind ability powered by Christmas magic to return!',
+    'REVIVE:{fighter2} regenerates with Christmas joy and comes back stronger!',
+    
+    // Mass events - Christmas Disasters (10 total)
+    'MASS_EVENT:Blizzard',
+    'MASS_EVENT:Ice Storm',
+    'MASS_EVENT:Snow Avalanche',
+    'MASS_EVENT:Frozen Tundra',
+    'MASS_EVENT:Christmas Tree Fire',
+    'MASS_EVENT:Ornament Explosion',
+    'MASS_EVENT:Reindeer Stampede',
+    'MASS_EVENT:Elf Uprising',
+    'MASS_EVENT:Coal Mine Collapse',
+    'MASS_EVENT:North Pole Earthquake',
+]
+
 function readDatabase(): BattleData {
     if (existsSync(dbPath)) {
         try {
@@ -143,6 +215,21 @@ function readDatabase(): BattleData {
             if (!parsed.spaceNames) {
                 parsed.spaceNames = {}
             }
+            // Initialize themes if not exists
+            if (!parsed.themes) {
+                parsed.themes = {
+                    default: DEFAULT_FIGHT_EVENTS,
+                    christmas: CHRISTMAS_FIGHT_EVENTS,
+                }
+            } else {
+                // Ensure both themes exist
+                if (!parsed.themes.default) {
+                    parsed.themes.default = DEFAULT_FIGHT_EVENTS
+                }
+                if (!parsed.themes.christmas) {
+                    parsed.themes.christmas = CHRISTMAS_FIGHT_EVENTS
+                }
+            }
             // Migrate old structure to new structure
             if (!parsed.activeBattles) {
                 parsed.activeBattles = { private: {} }
@@ -159,10 +246,24 @@ function readDatabase(): BattleData {
             return parsed
         } catch (error) {
             console.error('Error reading database:', error)
-            return { pastBattles: [], fightEvents: DEFAULT_FIGHT_EVENTS, playerStats: {}, activeBattles: { private: {} }, publicBattleChannels: [], spaceNames: {} }
+            return { 
+                pastBattles: [], 
+                fightEvents: DEFAULT_FIGHT_EVENTS, 
+                themes: { default: DEFAULT_FIGHT_EVENTS, christmas: CHRISTMAS_FIGHT_EVENTS },
+                playerStats: {}, 
+                activeBattles: { private: {} }, 
+                publicBattleChannels: [], 
+                spaceNames: {} 
+            }
         }
     }
-    return { pastBattles: [], fightEvents: DEFAULT_FIGHT_EVENTS, playerStats: {}, activeBattles: { private: {} } }
+    return { 
+        pastBattles: [], 
+        fightEvents: DEFAULT_FIGHT_EVENTS, 
+        themes: { default: DEFAULT_FIGHT_EVENTS, christmas: CHRISTMAS_FIGHT_EVENTS },
+        playerStats: {}, 
+        activeBattles: { private: {} } 
+    }
 }
 
 function writeDatabase(data: BattleData): void {
@@ -451,19 +552,28 @@ export function getFightEvents(): string[] {
     return data.fightEvents
 }
 
-export function getRegularFightEvents(): string[] {
+export function getRegularFightEvents(theme: string = 'default'): string[] {
     const data = readDatabase()
-    return data.fightEvents.filter(event => !event.startsWith('REVIVE:') && !event.startsWith('MASS_EVENT:'))
+    const events = theme === 'christmas' && data.themes?.christmas 
+        ? data.themes.christmas 
+        : (data.themes?.default || data.fightEvents || DEFAULT_FIGHT_EVENTS)
+    return events.filter(event => !event.startsWith('REVIVE:') && !event.startsWith('MASS_EVENT:'))
 }
 
-export function getReviveEvents(): string[] {
+export function getReviveEvents(theme: string = 'default'): string[] {
     const data = readDatabase()
-    return data.fightEvents.filter(event => event.startsWith('REVIVE:'))
+    const events = theme === 'christmas' && data.themes?.christmas 
+        ? data.themes.christmas 
+        : (data.themes?.default || data.fightEvents || DEFAULT_FIGHT_EVENTS)
+    return events.filter(event => event.startsWith('REVIVE:'))
 }
 
-export function getMassEvents(): string[] {
+export function getMassEvents(theme: string = 'default'): string[] {
     const data = readDatabase()
-    return data.fightEvents.filter(event => event.startsWith('MASS_EVENT:'))
+    const events = theme === 'christmas' && data.themes?.christmas 
+        ? data.themes.christmas 
+        : (data.themes?.default || data.fightEvents || DEFAULT_FIGHT_EVENTS)
+    return events.filter(event => event.startsWith('MASS_EVENT:'))
 }
 
 export function addFightEvent(event: string): void {

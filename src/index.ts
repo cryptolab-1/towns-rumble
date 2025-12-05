@@ -1106,7 +1106,7 @@ bot.onSlashCommand('leaderboard', async (handler, { channelId, spaceId }) => {
     // Track channel for public battle announcements
     trackChannelForPublicBattles(channelId, spaceId)
     
-    const { getTopPlayers, readDatabase } = await import('./db')
+    const { getTopPlayers, getTotalBattles } = await import('./db')
     
     const topPlayers = getTopPlayers('battles', 10)
     const topWinners = getTopPlayers('wins', 10)
@@ -1115,8 +1115,7 @@ bot.onSlashCommand('leaderboard', async (handler, { channelId, spaceId }) => {
     const topRevives = getTopPlayers('revives', 10)
     
     // Get total number of battles played
-    const data = readDatabase()
-    const totalBattles = data.pastBattles ? data.pastBattles.length : 0
+    const totalBattles = getTotalBattles()
     
     let leaderboardText = '🏆 **RUMBLE LEADERBOARD** 🏆\n\n'
     leaderboardText += `📈 **Total Battles Played:** ${totalBattles}\n\n`

@@ -7,7 +7,7 @@ import {
     handleTip,
     startBattleLoop,
 } from './battle'
-import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActivePublicBattle, setActivePrivateBattle, trackChannelForPublicBattles, getPublicBattleChannels, getBattleIdByMessageId, setMessageIdToBattleId, getBattleByBattleId, getBattleByChannelIdAndAdmin, type BattleState } from './db'
+import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActivePublicBattle, setActivePrivateBattle, trackChannelForPublicBattles, getPublicBattleChannels, getBattleIdByMessageId, setMessageIdToBattleId, getBattleByBattleId, getBattleByChannelIdAndAdmin, addBattlePermission, removeBattlePermission, getBattlePermissions, type BattleState } from './db'
 
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,
@@ -1070,6 +1070,119 @@ bot.onSlashCommand('leaderboard', async (handler, { channelId, spaceId }) => {
     }
     
     await handler.sendMessage(channelId, leaderboardText)
+})
+
+bot.onSlashCommand('perms', async (handler, { channelId, spaceId, userId, args }) => {
+    // Track channel for public battle announcements
+    trackChannelForPublicBattles(channelId, spaceId)
+    
+    // Check if user is admin (only admins can manage permissions)
+    const isAdmin = await handler.hasAdminPermission(userId, spaceId)
+    if (!isAdmin) {
+        await handler.sendMessage(channelId, '❌ Only admins can manage battle permissions!')
+        return
+    }
+
+    if (!args || args.length === 0) {
+        await handler.sendMessage(
+            channelId,
+            `❌ **Usage:** \`/perms [add|remove|list] [userId]\`\n\n` +
+            `**Examples:**\n` +
+            `\`/perms add 0x1234...\` - Give permission to a user\n` +
+            `\`/perms remove 0x1234...\` - Remove permission from a user\n` +
+            `\`/perms list\` - List all users with permissions in this town`
+        )
+        return
+    }
+
+    const action = args[0]?.toLowerCase()
+
+    if (action === 'list') {
+        // List all users with permissions
+        const permissions = getBattlePermissions(spaceId)
+        if (permissions.length === 0) {
+            await handler.sendMessage(
+                channelId,
+                `📋 **Battle Permissions for this Town**\n\n` +
+                `No users have been granted battle permissions yet.\n\n` +
+                `Use \`/perms add [userId]\` to grant permissions.`
+            )
+        } else {
+            let permissionsList = permissions.map(userId => `- <@${userId}>`).join('\n')
+            await handler.sendMessage(
+                channelId,
+                `📋 **Battle Permissions for this Town**\n\n` +
+                `**${permissions.length} user${permissions.length > 1 ? 's have' : ' has'} permission:**\n` +
+                `${permissionsList}\n\n` +
+                `Use \`/perms remove [userId]\` to remove permissions.`
+            )
+        }
+        return
+    }
+
+    if (action === 'add' || action === 'remove') {
+        if (!args[1]) {
+            await handler.sendMessage(
+                channelId,
+                `❌ Please provide a userId.\n\n` +
+                `**Example:** \`/perms ${action} 0x1234567890abcdef1234567890abcdef12345678\``
+            )
+            return
+        }
+
+        const targetUserId = args[1].trim()
+        
+        // Basic validation - should be a hex address
+        if (!targetUserId.startsWith('0x') || targetUserId.length < 10) {
+            await handler.sendMessage(
+                channelId,
+                `❌ Invalid userId format. Please provide a valid Ethereum address (0x...).`
+            )
+            return
+        }
+
+        if (action === 'add') {
+            // Check if user already has permission
+            if (getBattlePermissions(spaceId).includes(targetUserId)) {
+                await handler.sendMessage(
+                    channelId,
+                    `ℹ️ <@${targetUserId}> already has battle permissions in this town.`
+                )
+                return
+            }
+
+            addBattlePermission(spaceId, targetUserId)
+            await handler.sendMessage(
+                channelId,
+                `✅ **Permission Granted**\n\n` +
+                `<@${targetUserId}> can now launch and cancel battles in this town.`
+            )
+        } else if (action === 'remove') {
+            // Check if user has permission
+            if (!getBattlePermissions(spaceId).includes(targetUserId)) {
+                await handler.sendMessage(
+                    channelId,
+                    `ℹ️ <@${targetUserId}> does not have battle permissions in this town.`
+                )
+                return
+            }
+
+            removeBattlePermission(spaceId, targetUserId)
+            await handler.sendMessage(
+                channelId,
+                `✅ **Permission Removed**\n\n` +
+                `<@${targetUserId}> can no longer launch or cancel battles in this town.`
+            )
+        }
+        return
+    }
+
+    // Invalid action
+    await handler.sendMessage(
+        channelId,
+        `❌ Invalid action. Use \`add\`, \`remove\`, or \`list\`.\n\n` +
+        `**Usage:** \`/perms [add|remove|list] [userId]\``
+    )
 })
 
 bot.onMessage(async (handler, { message, channelId, spaceId, eventId, createdAt }) => {

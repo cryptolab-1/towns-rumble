@@ -1,12 +1,18 @@
 import type { BotHandler } from '@towns-protocol/bot'
-import { getActiveBattle, getBattleByChannelId, getBattleByBattleId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, incrementPlayerStat, getPublicBattleChannels, type BattleState } from './db'
+import { getActiveBattle, getBattleByChannelId, getBattleByBattleId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, incrementPlayerStat, getPublicBattleChannels, hasBattlePermission, type BattleState } from './db'
 import { getTipAmountRange } from './ethPrice'
 
 const SWORD_EMOJI = '⚔️'
 const SWORD_EMOJI_NAME = 'crossed_swords' // Towns Protocol sends reactions as string identifiers
 
-export function canStartBattle(handler: BotHandler, userId: string, spaceId: string): Promise<boolean> {
-    return handler.hasAdminPermission(userId, spaceId)
+export async function canStartBattle(handler: BotHandler, userId: string, spaceId: string): Promise<boolean> {
+    // Check if user is admin
+    const isAdmin = await handler.hasAdminPermission(userId, spaceId)
+    if (isAdmin) {
+        return true
+    }
+    // Check if user has custom battle permission
+    return hasBattlePermission(spaceId, userId)
 }
 
 export function initiateBattle(

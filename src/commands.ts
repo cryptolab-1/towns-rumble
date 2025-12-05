@@ -19,6 +19,10 @@ const commands = [
         name: 'leaderboard',
         description: 'View the top 10 players leaderboard',
     },
+    {
+        name: 'perms',
+        description: 'Manage battle permissions (admin only). Usage: /perms [add|remove|list] [userId]',
+    },
 ] as const satisfies PlainMessage<SlashCommand>[]
 
 export default commands

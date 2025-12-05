@@ -49,6 +49,7 @@ interface BattleData {
     publicBattleChannels?: Array<{ channelId: string; spaceId: string; spaceName?: string; announcementEventId?: string }> // Channels to announce public battles, with announcement message eventId
     spaceNames?: Record<string, string> // spaceId -> spaceName
     messageIdToBattleId?: Record<string, string> // messageId (announcement eventId) -> battleId
+    battlePermissions?: Record<string, string[]> // spaceId -> userId[] (users with permission to launch/cancel battles in this space)
 }
 
 const DEFAULT_FIGHT_EVENTS = [
@@ -615,6 +616,61 @@ export function removeMessageIdMapping(messageId: string): void {
         delete data.messageIdToBattleId[messageId]
         writeDatabase(data)
     }
+}
+
+/**
+ * Add battle permission for a user in a specific space
+ */
+export function addBattlePermission(spaceId: string, userId: string): void {
+    const data = readDatabase()
+    if (!data.battlePermissions) {
+        data.battlePermissions = {}
+    }
+    if (!data.battlePermissions[spaceId]) {
+        data.battlePermissions[spaceId] = []
+    }
+    if (!data.battlePermissions[spaceId].includes(userId)) {
+        data.battlePermissions[spaceId].push(userId)
+        writeDatabase(data)
+        console.log(`[addBattlePermission] Added permission for userId ${userId} in space ${spaceId}`)
+    }
+}
+
+/**
+ * Remove battle permission for a user in a specific space
+ */
+export function removeBattlePermission(spaceId: string, userId: string): void {
+    const data = readDatabase()
+    if (!data.battlePermissions) {
+        return
+    }
+    if (data.battlePermissions[spaceId]) {
+        data.battlePermissions[spaceId] = data.battlePermissions[spaceId].filter(id => id !== userId)
+        writeDatabase(data)
+        console.log(`[removeBattlePermission] Removed permission for userId ${userId} in space ${spaceId}`)
+    }
+}
+
+/**
+ * Check if a user has battle permission in a specific space
+ */
+export function hasBattlePermission(spaceId: string, userId: string): boolean {
+    const data = readDatabase()
+    if (!data.battlePermissions || !data.battlePermissions[spaceId]) {
+        return false
+    }
+    return data.battlePermissions[spaceId].includes(userId)
+}
+
+/**
+ * Get all users with battle permissions in a specific space
+ */
+export function getBattlePermissions(spaceId: string): string[] {
+    const data = readDatabase()
+    if (!data.battlePermissions || !data.battlePermissions[spaceId]) {
+        return []
+    }
+    return [...data.battlePermissions[spaceId]]
 }
 
 // Initialize database on first load

@@ -106,17 +106,18 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
                 const isOriginatingTown = channel.spaceId === spaceId
                 const locationText = isOriginatingTown ? 'initiated in this town' : 'initiated from another town'
                 
+                const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : ''
                 let battleMessage: string
                 if (isOriginatingTown) {
                     // Originating town gets full message with warnings
                     battleMessage = `⚔️ **BATTLE ROYALE INITIATED!** ⚔️\n\n` +
+                        `${themeText}` +
                         `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
                         `React with ⚔️ to join the battle!\n\n` +
                         `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
                         `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
                 } else {
                     // Other towns get simplified message
-                    const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : ''
                     battleMessage = `⚔️ **BATTLE ROYALE INITIATED!** ⚔️\n\n` +
                         `${themeText}` +
                         `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +

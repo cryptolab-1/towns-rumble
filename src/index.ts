@@ -209,7 +209,11 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
     let theme = 'default' // Default theme
     const privateArg = args.find(arg => arg.toLowerCase() === 'private' || arg.toLowerCase() === 'p')
     const publicArg = args.find(arg => arg.toLowerCase() === 'public' || arg.toLowerCase() === 'pub')
-    const christmasArg = args.find(arg => arg.toLowerCase() === 'christmas' || arg.toLowerCase() === 'xmas')
+    // Support both "christmas" and "Theme: christmas" formats
+    const christmasArg = args.find(arg => {
+        const lower = arg.toLowerCase()
+        return lower === 'christmas' || lower === 'xmas' || (lower.includes('theme:') && lower.includes('christmas'))
+    })
     
     if (privateArg) {
         isPrivate = true

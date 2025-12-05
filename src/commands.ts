@@ -23,6 +23,10 @@ const commands = [
         name: 'perms',
         description: 'Manage battle permissions (admin only). Usage: /perms [add|remove|list] [userId]',
     },
+    {
+        name: 'help',
+        description: 'Show help and how to use the Rumble Royale bot',
+    },
 ] as const satisfies PlainMessage<SlashCommand>[]
 
 export default commands

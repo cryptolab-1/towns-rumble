@@ -1286,6 +1286,60 @@ bot.onSlashCommand('perms', async (handler, { channelId, spaceId, userId, args }
     )
 })
 
+bot.onSlashCommand('help', async (handler, { channelId }) => {
+    const helpMessage = `⚔️ **RUMBLE ROYALE BOT - HELP** ⚔️\n\n` +
+        `Welcome to the Battle Royale game bot! Here's how it works:\n\n` +
+        `## 🎮 **How to Play**\n\n` +
+        `1. **Start a Battle** (Admin only):\n` +
+        `   • \`/rumble [private|public] [Theme: christmas]\` - Start a battle without rewards\n` +
+        `   • \`/rumble_reward AMOUNT [private|public] [Theme: christmas]\` - Start a battle with TOWNS rewards\n\n` +
+        `2. **Join a Battle**:\n` +
+        `   • React with ⚔️ to the battle announcement message to join\n` +
+        `   • Anyone can join public battles from any town\n` +
+        `   • Private battles are only for your town\n\n` +
+        `3. **Launch the Battle**:\n` +
+        `   • Admin must tip **$1 USD worth of ETH** to the bot to start\n` +
+        `   • For reward battles, token approval is required first\n` +
+        `   • ⚠️ **Minimum 2 players required** to launch\n\n` +
+        `4. **Battle Mechanics**:\n` +
+        `   • Rounds happen every 10 seconds\n` +
+        `   • Players fight each other in epic battles\n` +
+        `   • Mass events can eliminate multiple players at once\n` +
+        `   • Players can be revived during battle\n` +
+        `   • Last player standing wins!\n\n` +
+        `## 🏆 **Rewards** (if enabled)\n\n` +
+        `• **1st Place**: 60% of reward pool\n` +
+        `• **2nd Place**: 25% of reward pool\n` +
+        `• **3rd Place**: 15% of reward pool\n\n` +
+        `## 📊 **Commands**\n\n` +
+        `• \`/rumble\` - Start a battle without rewards\n` +
+        `• \`/rumble_reward AMOUNT\` - Start a battle with TOWNS rewards\n` +
+        `• \`/cancel\` - Cancel an active battle (admin only)\n` +
+        `• \`/leaderboard\` - View top 10 players, winners, kills, deaths, and revives\n` +
+        `• \`/perms [add|remove|list] [userId]\` - Manage battle permissions (admin only)\n` +
+        `• \`/help\` - Show this help message\n\n` +
+        `## 🎨 **Themes**\n\n` +
+        `• **Default Theme**: Regular battle events\n` +
+        `• **Christmas Theme**: Festive battle events (add \`Theme: christmas\` to command)\n\n` +
+        `## ⚙️ **Battle Types**\n\n` +
+        `• **Public Battles**: Cross-town battles, anyone can join from any town\n` +
+        `   - Only one public battle can be active at a time\n` +
+        `   - Auto-cancels after 10 minutes if not launched\n\n` +
+        `• **Private Battles**: Town-only battles\n` +
+        `   - One private battle per town\n` +
+        `   - Only members of that town can join\n\n` +
+        `## 📈 **Leaderboard Stats**\n\n` +
+        `Track your progress with:\n` +
+        `• **Battles**: Total battles participated\n` +
+        `• **Wins**: Total wins (1st, 2nd, or 3rd place)\n` +
+        `• **Kills**: Total eliminations\n` +
+        `• **Deaths**: Total times eliminated\n` +
+        `• **Revives**: Total times revived\n\n` +
+        `Good luck and may the best fighter win! ⚔️`
+    
+    await handler.sendMessage(channelId, helpMessage)
+})
+
 bot.onMessage(async (handler, { message, channelId, spaceId, eventId, createdAt }) => {
     // Track channel for public battle announcements
     trackChannelForPublicBattles(channelId, spaceId)

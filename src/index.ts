@@ -518,7 +518,7 @@ bot.onSlashCommand('cancel', async (handler, { channelId, spaceId, userId }) => 
     }
 })
 
-bot.onSlashCommand('test', async (handler, { channelId, spaceId, userId }) => {
+bot.onSlashCommand('test', async (handler, { channelId, spaceId, userId, replyId }) => {
     // Track channel for public battle announcements
     trackChannelForPublicBattles(channelId, spaceId)
     
@@ -529,13 +529,35 @@ bot.onSlashCommand('test', async (handler, { channelId, spaceId, userId }) => {
         return
     }
 
-    // Find the battle where this user is the admin (check both public and private)
-    // This ensures we get the correct battle when multiple battles exist in the same channel
-    const battle = getBattleByChannelIdAndAdmin(channelId, userId)
+    // If command was used as a reply to a message, try to find battle by that messageId
+    let battle: BattleState | undefined = undefined
+    if (replyId) {
+        const battleId = getBattleIdByMessageId(replyId)
+        if (battleId) {
+            battle = getBattleByBattleId(battleId)
+            console.log(`[test] Found battle by replyId ${replyId}: ${battle ? battle.battleId : 'none'}`)
+        }
+    }
+    
+    // Fallback: Find the battle where this user is the admin (check both public and private)
+    if (!battle) {
+        battle = getBattleByChannelIdAndAdmin(channelId, userId)
+        console.log(`[test] Found battle by channelId and adminId: ${battle ? battle.battleId : 'none'}`)
+    }
+    
     if (!battle) {
         await handler.sendMessage(
             channelId,
-            '❌ No active battle found where you are the admin. Start a battle with `/rumble` or `/rumble_reward` first.'
+            '❌ No active battle found. Please reply to a battle announcement message with `/test`, or start a battle with `/rumble` or `/rumble_reward` first.'
+        )
+        return
+    }
+    
+    // Verify user is the admin of this battle
+    if (battle.adminId !== userId) {
+        await handler.sendMessage(
+            channelId,
+            '❌ Only the admin who started the battle can add test players.'
         )
         return
     }
@@ -599,19 +621,30 @@ bot.onSlashCommand('test', async (handler, { channelId, spaceId, userId }) => {
     )
 })
 
-bot.onSlashCommand('test2', async (handler, { channelId, spaceId, userId }) => {
+bot.onSlashCommand('test2', async (handler, { channelId, spaceId, userId, replyId }) => {
     // Track channel for public battle announcements
     trackChannelForPublicBattles(channelId, spaceId)
     
-    // Find any active battle in this channel (public or private)
-    // For public battles, allow from any town
-    // For private battles, only allow from the same town
-    let battle = getBattleByChannelId(channelId)
+    // If command was used as a reply to a message, try to find battle by that messageId
+    let battle: BattleState | undefined = undefined
+    if (replyId) {
+        const battleId = getBattleIdByMessageId(replyId)
+        if (battleId) {
+            battle = getBattleByBattleId(battleId)
+            console.log(`[test2] Found battle by replyId ${replyId}: ${battle ? battle.battleId : 'none'}`)
+        }
+    }
+    
+    // Fallback: Find any active battle in this channel (public or private)
+    if (!battle) {
+        battle = getBattleByChannelId(channelId)
+        console.log(`[test2] Found battle by channelId: ${battle ? battle.battleId : 'none'}`)
+    }
     
     if (!battle) {
         await handler.sendMessage(
             channelId,
-            '❌ No active battle found in this channel. Start a battle with `/rumble` or `/rumble_reward` first.'
+            '❌ No active battle found. Please reply to a battle announcement message with `/test2`, or start a battle with `/rumble` or `/rumble_reward` first.'
         )
         return
     }

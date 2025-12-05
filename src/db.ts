@@ -682,6 +682,11 @@ export function getTopPlayers(sortBy: 'battles' | 'wins' | 'kills' | 'deaths' | 
         .filter(player => player[sortBy] > 0) // Only show players with stats > 0
 }
 
+export function getTotalBattles(): number {
+    const data = readDatabase()
+    return data.pastBattles ? data.pastBattles.length : 0
+}
+
 /**
  * Track a channel for public battle announcements
  */

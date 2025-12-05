@@ -16,14 +16,6 @@ const commands = [
         description: 'Cancel a battle that hasn\'t started yet (admin only)',
     },
     {
-        name: 'test',
-        description: 'Add 5 test players to battle (admin only). Reply to battle announcement or use in battle channel.',
-    },
-    {
-        name: 'test2',
-        description: 'Add 5 fake users to battle (any admin). Reply to battle announcement or use in battle channel.',
-    },
-    {
         name: 'leaderboard',
         description: 'View the top 10 players leaderboard',
     },

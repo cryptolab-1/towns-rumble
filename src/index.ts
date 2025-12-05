@@ -518,192 +518,6 @@ bot.onSlashCommand('cancel', async (handler, { channelId, spaceId, userId }) => 
     }
 })
 
-bot.onSlashCommand('test', async (handler, { channelId, spaceId, userId, replyId }) => {
-    // Track channel for public battle announcements
-    trackChannelForPublicBattles(channelId, spaceId)
-    
-    // Check if user is admin
-    const isAdmin = await canStartBattle(handler, userId, spaceId)
-    if (!isAdmin) {
-        await handler.sendMessage(channelId, '❌ Only admins can use test mode!')
-        return
-    }
-
-    // If command was used as a reply to a message, try to find battle by that messageId
-    let battle: BattleState | undefined = undefined
-    if (replyId) {
-        const battleId = getBattleIdByMessageId(replyId)
-        if (battleId) {
-            battle = getBattleByBattleId(battleId)
-            console.log(`[test] Found battle by replyId ${replyId}: ${battle ? battle.battleId : 'none'}`)
-        }
-    }
-    
-    // Fallback: Find the battle where this user is the admin (check both public and private)
-    if (!battle) {
-        battle = getBattleByChannelIdAndAdmin(channelId, userId)
-        console.log(`[test] Found battle by channelId and adminId: ${battle ? battle.battleId : 'none'}`)
-    }
-    
-    if (!battle) {
-        await handler.sendMessage(
-            channelId,
-            '❌ No active battle found. Please reply to a battle announcement message with `/test`, or start a battle with `/rumble` or `/rumble_reward` first.'
-        )
-        return
-    }
-    
-    // Verify user is the admin of this battle
-    if (battle.adminId !== userId) {
-        await handler.sendMessage(
-            channelId,
-            '❌ Only the admin who started the battle can add test players.'
-        )
-        return
-    }
-
-    // Check if battle has already started
-    if (battle.status === 'active' || battle.status === 'finished') {
-        await handler.sendMessage(
-            channelId,
-            '❌ Cannot add test players to a battle that has already started or finished.'
-        )
-        return
-    }
-
-    // Generate 5 fake participant IDs (using pattern: test-{battleId}-{index})
-    const testParticipants: string[] = []
-    for (let i = 1; i <= 5; i++) {
-        const fakeUserId = `0x${battle.battleId.replace(/[^a-f0-9]/gi, '').substring(0, 38)}${i.toString().padStart(2, '0')}` as `0x${string}`
-        testParticipants.push(fakeUserId)
-    }
-
-    // Add test participants using addParticipant to ensure proper database updates
-    // Also ensure admin is included
-    const { addParticipant, setActivePrivateBattle, setActivePublicBattle } = await import('./db')
-    
-    // Ensure admin is in the battle
-    if (!battle.participants.includes(userId)) {
-        addParticipant(battle.battleId, userId)
-    }
-    
-    // Add test participants
-    let addedCount = 0
-    for (const fakeUserId of testParticipants) {
-        if (addParticipant(battle.battleId, fakeUserId)) {
-            addedCount++
-        }
-    }
-    
-    // Mark battle as test and update it
-    battle.isTest = true
-    // Re-fetch battle to get updated participant list
-    const updatedBattle = getBattleByBattleId(battle.battleId) || battle
-    updatedBattle.isTest = true
-    
-    if (updatedBattle.isPrivate) {
-        setActivePrivateBattle(updatedBattle.spaceId, updatedBattle)
-    } else {
-        setActivePublicBattle(updatedBattle)
-    }
-
-    // Get final participant count from updated battle
-    const finalBattle = getBattleByBattleId(battle.battleId) || updatedBattle
-    
-    await handler.sendMessage(
-        channelId,
-        `🧪 **TEST MODE ACTIVATED** 🧪\n\n` +
-        `Added **${addedCount} test players** to the battle!\n` +
-        `Current participants: **${finalBattle.participants.length}** (including you)\n\n` +
-        `${finalBattle.rewardAmount ? `💰 **Reward Pool:** ${(await import('./token')).formatTokenAmount(BigInt(finalBattle.rewardAmount))} TOWNS\n` : ''}` +
-        `⚠️ **Note:** In test mode, all rewards will be sent to your address (admin).\n\n` +
-        `You can now tip **$1 USD worth of ETH** to launch the test battle!`
-    )
-})
-
-bot.onSlashCommand('test2', async (handler, { channelId, spaceId, userId, replyId }) => {
-    // Track channel for public battle announcements
-    trackChannelForPublicBattles(channelId, spaceId)
-    
-    // If command was used as a reply to a message, try to find battle by that messageId
-    let battle: BattleState | undefined = undefined
-    if (replyId) {
-        const battleId = getBattleIdByMessageId(replyId)
-        if (battleId) {
-            battle = getBattleByBattleId(battleId)
-            console.log(`[test2] Found battle by replyId ${replyId}: ${battle ? battle.battleId : 'none'}`)
-        }
-    }
-    
-    // Fallback: Find any active battle in this channel (public or private)
-    if (!battle) {
-        battle = getBattleByChannelId(channelId)
-        console.log(`[test2] Found battle by channelId: ${battle ? battle.battleId : 'none'}`)
-    }
-    
-    if (!battle) {
-        await handler.sendMessage(
-            channelId,
-            '❌ No active battle found. Please reply to a battle announcement message with `/test2`, or start a battle with `/rumble` or `/rumble_reward` first.'
-        )
-        return
-    }
-
-    // For private battles, check if it's from the same town
-    if (battle.isPrivate) {
-        if (battle.spaceId !== spaceId) {
-            await handler.sendMessage(
-                channelId,
-                '❌ This is a private battle. You can only add test players from the town where it was started.'
-            )
-            return
-        }
-    }
-
-    // Check if battle has already started
-    if (battle.status === 'active' || battle.status === 'finished') {
-        await handler.sendMessage(
-            channelId,
-            '❌ Cannot add test players to a battle that has already started or finished.'
-        )
-        return
-    }
-
-    // Generate 5 fake participant IDs (excluding admin)
-    // Use a different pattern to avoid conflicts with test command
-    const testParticipants: string[] = []
-    for (let i = 1; i <= 5; i++) {
-        // Generate unique fake user IDs based on battleId and index
-        const fakeUserId = `0x${battle.battleId.replace(/[^a-f0-9]/gi, '').substring(0, 36)}${i.toString().padStart(2, '0')}2` as `0x${string}`
-        testParticipants.push(fakeUserId)
-    }
-
-    // Add test participants (excluding admin - don't add userId)
-    // Use addParticipant to ensure duplicates are handled correctly
-    const { addParticipant, setActivePublicBattle, setActivePrivateBattle } = await import('./db')
-    let addedCount = 0
-    for (const fakeUserId of testParticipants) {
-        if (addParticipant(battle.battleId, fakeUserId)) {
-            addedCount++
-        }
-    }
-
-    // Get fresh battle state to get accurate count
-    const freshBattle = battle.isPrivate 
-        ? getActivePrivateBattle(spaceId || '')
-        : getActivePublicBattle()
-    const finalBattle = freshBattle || battle
-
-    await handler.sendMessage(
-        channelId,
-        `🧪 **TEST2 MODE** 🧪\n\n` +
-        `Added **${addedCount} fake users** to the battle!\n` +
-        `Current participants: **${finalBattle.participants.length}**\n\n` +
-        `⚠️ **Note:** These are fake users for testing purposes only.\n\n` +
-        `You can now tip **$1 USD worth of ETH** to launch the battle!`
-    )
-})
-
 bot.onInteractionResponse(async (handler, { response, channelId, userId }) => {
     // Handle token approval transaction response
     if (response.payload.content?.case === 'transaction') {
@@ -883,6 +697,69 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId, messageId
         return
     }
 
+    // Handle warning sign emoji for adding test users
+    // Towns Protocol sends reactions as string identifiers, so check both emoji and string
+    if (reaction === '⚠️' || reaction === 'warning' || reaction === 'warning_sign') {
+        console.log(`[onReaction] Warning sign detected, looking for battle to add test users...`)
+        
+        // Find the battle by the messageId they're reacting to (the announcement message)
+        let battle: BattleState | undefined = undefined
+        
+        if (messageId) {
+            // Direct lookup: messageId -> battleId
+            const battleId = getBattleIdByMessageId(messageId)
+            if (battleId) {
+                battle = getBattleByBattleId(battleId)
+                console.log(`[onReaction] Found battle by messageId mapping: ${battleId} -> ${battle ? battle.battleId : 'not found'}`)
+            }
+        }
+        
+        if (!battle) {
+            await handler.sendMessage(
+                channelId,
+                '❌ No battle found. Please react with ⚠️ to a battle announcement message.'
+            )
+            return
+        }
+        
+        // Check if battle has already started
+        if (battle.status === 'active' || battle.status === 'finished') {
+            await handler.sendMessage(
+                channelId,
+                '❌ Cannot add test players to a battle that has already started or finished.'
+            )
+            return
+        }
+        
+        // Generate 5 fake participant IDs
+        const testParticipants: string[] = []
+        for (let i = 1; i <= 5; i++) {
+            const fakeUserId = `0x${battle.battleId.replace(/[^a-f0-9]/gi, '').substring(0, 36)}${i.toString().padStart(2, '0')}test` as `0x${string}`
+            testParticipants.push(fakeUserId)
+        }
+        
+        // Add test participants using addParticipant
+        const { addParticipant, setActivePrivateBattle, setActivePublicBattle } = await import('./db')
+        let addedCount = 0
+        for (const fakeUserId of testParticipants) {
+            if (addParticipant(battle.battleId, fakeUserId)) {
+                addedCount++
+            }
+        }
+        
+        // Get fresh battle state to get accurate count
+        const freshBattle = getBattleByBattleId(battle.battleId) || battle
+        
+        await handler.sendMessage(
+            channelId,
+            `🧪 **TEST USERS ADDED** 🧪\n\n` +
+            `Added **${addedCount} fake users** to the battle!\n` +
+            `Current participants: **${freshBattle.participants.length}**\n\n` +
+            `⚠️ **Note:** These are fake users for testing purposes only.`
+        )
+        return
+    }
+    
     // Keep existing wave reaction handler
     if (reaction === '👋') {
         await handler.sendMessage(channelId, 'I saw your wave! 👋')

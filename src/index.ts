@@ -766,16 +766,59 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId, messageId
     }
 })
 
-bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, channelId, messageId }) => {
+bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, channelId, messageId, spaceId }) => {
     // Check if tip is to the bot
     if (receiverAddress.toLowerCase() !== bot.appAddress.toLowerCase()) {
         return
     }
 
-    // Find the battle where this user is the admin (check both public and private)
+    // Find the battle by the messageId the tip is attached to (the announcement message)
     // This ensures we get the correct battle when multiple battles exist in the same channel
-    const battle = getBattleByChannelIdAndAdmin(channelId, userId)
+    let battle: BattleState | undefined = undefined
+    
+    if (messageId) {
+        // Direct lookup: messageId -> battleId
+        const battleId = getBattleIdByMessageId(messageId)
+        if (battleId) {
+            battle = getBattleByBattleId(battleId)
+            console.log(`[onTip] Found battle by messageId mapping: ${battleId} -> ${battle ? battle.battleId : 'not found'}`)
+        }
+    }
+    
+    // Fallback: Find the battle where this user is the admin (check both public and private)
+    // Prioritize battles in 'pending_tip' status since those are waiting for tips
     if (!battle) {
+        // First check for a battle in pending_tip status
+        const publicBattle = getActivePublicBattle()
+        if (publicBattle && publicBattle.channelId === channelId && publicBattle.adminId === userId && publicBattle.status === 'pending_tip') {
+            battle = publicBattle
+            console.log(`[onTip] Found public battle in pending_tip status: ${battle.battleId}`)
+        }
+        
+        // Check private battles for pending_tip
+        if (!battle && spaceId) {
+            const privateBattle = getActivePrivateBattle(spaceId)
+            if (privateBattle && privateBattle.channelId === channelId && privateBattle.adminId === userId && privateBattle.status === 'pending_tip') {
+                battle = privateBattle
+                console.log(`[onTip] Found private battle in pending_tip status: ${battle.battleId}`)
+            }
+        }
+        
+        // If no pending_tip battle found, use the general lookup
+        if (!battle) {
+            battle = getBattleByChannelIdAndAdmin(channelId, userId)
+            console.log(`[onTip] Fallback: Found battle by channelId and adminId: ${battle ? battle.battleId : 'none'}`)
+        }
+    }
+    
+    if (!battle) {
+        console.log(`[onTip] No battle found for tip from userId: ${userId}, messageId: ${messageId}`)
+        return
+    }
+    
+    // Verify the user is the admin of this battle
+    if (battle.adminId !== userId) {
+        console.log(`[onTip] User ${userId} is not the admin of battle ${battle.battleId} (admin: ${battle.adminId})`)
         return
     }
 
@@ -946,8 +989,8 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
             } catch (error) {
                 console.error('Error getting tip amount range for error message:', error)
                 const receivedEth = Number(amount) / 1e18
-                await handler.sendMessage(
-                    channelId,
+    await handler.sendMessage(
+        channelId,
                     `❌ Tip amount incorrect!\n\n` +
                     `Received: ${receivedEth.toFixed(6)} ETH\n\n` +
                     `Please tip exactly $1 USD worth of ETH to start the battle.\n` +

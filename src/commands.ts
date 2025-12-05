@@ -17,11 +17,11 @@ const commands = [
     },
     {
         name: 'test',
-        description: 'Add 5 test players to current battle for testing (admin only)',
+        description: 'Add 5 test players to battle (admin only). Reply to battle announcement or use in battle channel.',
     },
     {
         name: 'test2',
-        description: 'Add 5 fake users (excluding admin) to current battle - can be used in any town',
+        description: 'Add 5 fake users to battle (any admin). Reply to battle announcement or use in battle channel.',
     },
     {
         name: 'leaderboard',

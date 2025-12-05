@@ -7,7 +7,7 @@ import {
     handleTip,
     startBattleLoop,
 } from './battle'
-import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActivePublicBattle, setActivePrivateBattle, trackChannelForPublicBattles, getPublicBattleChannels, getBattleIdByMessageId, setMessageIdToBattleId, getBattleByBattleId, getBattleByChannelIdAndAdmin, addBattlePermission, removeBattlePermission, getBattlePermissions, type BattleState } from './db'
+import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActivePublicBattle, setActivePrivateBattle, trackChannelForPublicBattles, getPublicBattleChannels, getBattleIdByMessageId, setMessageIdToBattleId, getBattleByBattleId, getBattleByChannelIdAndAdmin, addBattlePermission, removeBattlePermission, getBattlePermissions, finishBattle, type BattleState } from './db'
 
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,
@@ -114,6 +114,7 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
                         `${themeText}` +
                         `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
                         `React with ⚔️ to join the battle!\n\n` +
+                        `⏰ **You have 10 minutes to join and launch the Battle or it will auto-cancel**\n\n` +
                         `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
                         `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
                 } else {
@@ -122,6 +123,7 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
                         `${themeText}` +
                         `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
                         `React with ⚔️ to join the battle!\n\n` +
+                        `⏰ **You have 10 minutes to join and launch the Battle or it will auto-cancel**\n\n` +
                         `⚔️ The Battle will start soon`
                 }
                 
@@ -165,6 +167,36 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
             setActivePrivateBattle(spaceId, battle)
         } else {
             setActivePublicBattle(battle)
+            
+            // Set up 10-minute auto-cancel timer for public battles
+            setTimeout(async () => {
+                const currentBattle = getActivePublicBattle()
+                // Only cancel if battle still exists, hasn't been launched, and matches this battleId
+                if (currentBattle && 
+                    currentBattle.battleId === battleId && 
+                    (currentBattle.status === 'pending_tip' || currentBattle.status === 'pending_approval')) {
+                    
+                    console.log(`[auto-cancel] Auto-cancelling public battle ${battleId} after 10 minutes`)
+                    
+                    // Cancel the battle
+                    finishBattle(currentBattle)
+                    setActivePublicBattle(undefined)
+                    
+                    // Broadcast cancellation message to all tracked channels
+                    const channels = getPublicBattleChannels()
+                    const cancelMessage = `❌ **BATTLE AUTO-CANCELLED** ❌\n\n` +
+                        `The public battle was automatically cancelled after 10 minutes because it was not launched.\n\n` +
+                        `You can start a new battle with \`/rumble\`.`
+                    
+                    for (const channel of channels) {
+                        try {
+                            await bot.sendMessage(channel.channelId, cancelMessage)
+                        } catch (error) {
+                            console.error(`Error broadcasting auto-cancel message to channel ${channel.channelId}:`, error)
+                        }
+                    }
+                }
+            }, 10 * 60 * 1000) // 10 minutes in milliseconds
         }
     }
 })
@@ -342,6 +374,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                                 `${themeText}` +
                                 `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
                                 `React with ⚔️ to join the battle!\n\n` +
+                                `⏰ **You have 10 minutes to join and launch the Battle or it will auto-cancel**\n\n` +
                                 `💰 **Reward Pool:** ${formatTokenAmount(requiredAmount)} TOWNS\n\n` +
                                 `⚠️ **Token Approval Required**\n` +
                                 `Please approve the transaction in the dialog above to allow the bot to distribute rewards.\n\n` +
@@ -353,6 +386,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                                 `${themeText}` +
                                 `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
                                 `React with ⚔️ to join the battle!\n\n` +
+                                `⏰ **You have 10 minutes to join and launch the Battle or it will auto-cancel**\n\n` +
                                 `💰 **Reward Pool:** ${formatTokenAmount(requiredAmount)} TOWNS\n\n` +
                                 `⚔️ The Battle will start soon`
                         }
@@ -473,6 +507,36 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
             setActivePrivateBattle(spaceId, battle)
         } else {
             setActivePublicBattle(battle)
+            
+            // Set up 10-minute auto-cancel timer for public battles
+            setTimeout(async () => {
+                const currentBattle = getActivePublicBattle()
+                // Only cancel if battle still exists, hasn't been launched, and matches this battleId
+                if (currentBattle && 
+                    currentBattle.battleId === battleId && 
+                    (currentBattle.status === 'pending_tip' || currentBattle.status === 'pending_approval')) {
+                    
+                    console.log(`[auto-cancel] Auto-cancelling public battle ${battleId} after 10 minutes`)
+                    
+                    // Cancel the battle
+                    finishBattle(currentBattle)
+                    setActivePublicBattle(undefined)
+                    
+                    // Broadcast cancellation message to all tracked channels
+                    const channels = getPublicBattleChannels()
+                    const cancelMessage = `❌ **BATTLE AUTO-CANCELLED** ❌\n\n` +
+                        `The public battle was automatically cancelled after 10 minutes because it was not launched.\n\n` +
+                        `You can start a new battle with \`/rumble\` or \`/rumble_reward\`.`
+                    
+                    for (const channel of channels) {
+                        try {
+                            await bot.sendMessage(channel.channelId, cancelMessage)
+                        } catch (error) {
+                            console.error(`Error broadcasting auto-cancel message to channel ${channel.channelId}:`, error)
+                        }
+                    }
+                }
+            }, 10 * 60 * 1000) // 10 minutes in milliseconds
         }
     }
 })

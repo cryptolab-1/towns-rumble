@@ -787,7 +787,8 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId, messageId
                 : getActivePublicBattle()
             const finalBattle = freshBattle || battle
 
-            const joinMessage = `<@${userId}> has joined the battle! ⚔️ (${finalBattle.participants.length} participants)`
+            const battleType = battle.isPrivate ? '🔒 Private Battle' : '🌐 Public Battle'
+            const joinMessage = `<@${userId}> has joined the ${battleType}! ⚔️ (${finalBattle.participants.length} participants)`
 
             if (battle.isPrivate) {
                 // Private battle – only notify in the current town/channel
@@ -811,9 +812,10 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId, messageId
                 : getActivePublicBattle()
             const finalBattle = freshBattle || battle
             if (finalBattle && finalBattle.battleId === battle.battleId && finalBattle.participants.includes(userId)) {
+                const battleType = battle.isPrivate ? '🔒 Private Battle' : '🌐 Public Battle'
                 await handler.sendMessage(
                     channelId,
-                    `ℹ️ You're already in this battle! ⚔️ (${finalBattle.participants.length} participants)`
+                    `ℹ️ You're already in this ${battleType}! ⚔️ (${finalBattle.participants.length} participants)`
                 )
             } else {
                 // Check if it's a private battle and user tried to join from wrong town

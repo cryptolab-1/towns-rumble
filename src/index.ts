@@ -455,7 +455,8 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                     battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
                         `${themeText}` +
                         `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
-                        `React with ⚔️ to join the battle!\n` +
+                        `React with ⚔️ to join the battle!\n\n` +
+                        `⏰ **You have 10 minutes to join and launch the Battle or it will auto-cancel**\n\n` +
                         `💰 **Reward Pool:** ${formatTokenAmount(requiredAmount)} TOWNS\n\n` +
                         `⚠️ **WARNING:** Be sure to have enough TOWNS before launching the Battle!\n\n` +
                         `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
@@ -466,6 +467,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                         `${themeText}` +
                         `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
                         `React with ⚔️ to join the battle!\n\n` +
+                        `⏰ **You have 10 minutes to join and launch the Battle or it will auto-cancel**\n\n` +
                         `💰 **Reward Pool:** ${formatTokenAmount(requiredAmount)} TOWNS\n\n` +
                         `⚔️ The Battle will start soon`
                 }

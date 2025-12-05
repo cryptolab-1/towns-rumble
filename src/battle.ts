@@ -1,5 +1,5 @@
 import type { BotHandler } from '@towns-protocol/bot'
-import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, incrementPlayerStat, getPublicBattleChannels } from './db'
+import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, incrementPlayerStat, getPublicBattleChannels, type BattleState } from './db'
 import { getTipAmountRange } from './ethPrice'
 
 const SWORD_EMOJI = '⚔️'
@@ -118,13 +118,15 @@ export async function handleTip(
     handler: BotHandler,
     senderId: string,
     amount: bigint,
-    channelId: string
+    channelId: string,
+    battle?: BattleState
 ): Promise<boolean> {
-    const battle = getBattleByChannelId(channelId)
-    if (!battle) return false
+    // If battle is provided, use it; otherwise fall back to channelId lookup
+    const currentBattle = battle || getBattleByChannelId(channelId)
+    if (!currentBattle) return false
     
-    if (battle.status !== 'pending_tip') return false
-    if (senderId !== battle.adminId) return false
+    if (currentBattle.status !== 'pending_tip') return false
+    if (senderId !== currentBattle.adminId) return false
     
     // Get the acceptable tip amount range ($1 USD with 10% slippage)
     try {
@@ -140,15 +142,15 @@ export async function handleTip(
         return false
     }
     
-    battle.status = 'active'
-    battle.tipReceived = true
-    battle.tipAmount = amount.toString()
-    battle.startedAt = Date.now()
+    currentBattle.status = 'active'
+    currentBattle.tipReceived = true
+    currentBattle.tipAmount = amount.toString()
+    currentBattle.startedAt = Date.now()
     
-    if (battle.isPrivate) {
-        setActivePrivateBattle(battle.spaceId, battle)
+    if (currentBattle.isPrivate) {
+        setActivePrivateBattle(currentBattle.spaceId, currentBattle)
     } else {
-        setActivePublicBattle(battle)
+        setActivePublicBattle(currentBattle)
     }
     return true
 }

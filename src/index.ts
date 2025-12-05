@@ -7,7 +7,7 @@ import {
     handleTip,
     startBattleLoop,
 } from './battle'
-import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActivePublicBattle, setActivePrivateBattle, trackChannelForPublicBattles, getPublicBattleChannels, getBattleIdByMessageId, setMessageIdToBattleId, getBattleByBattleId, type BattleState } from './db'
+import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActivePublicBattle, setActivePrivateBattle, trackChannelForPublicBattles, getPublicBattleChannels, getBattleIdByMessageId, setMessageIdToBattleId, getBattleByBattleId, getBattleByChannelIdAndAdmin, type BattleState } from './db'
 
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,
@@ -516,30 +516,13 @@ bot.onSlashCommand('test', async (handler, { channelId, spaceId, userId }) => {
         return
     }
 
-    // Check if there's an active battle
-    const battle = getActiveBattle()
+    // Find the battle where this user is the admin (check both public and private)
+    // This ensures we get the correct battle when multiple battles exist in the same channel
+    const battle = getBattleByChannelIdAndAdmin(channelId, userId)
     if (!battle) {
         await handler.sendMessage(
             channelId,
-            '❌ No active battle found. Start a battle with `/rumble` or `/rumble_reward` first.'
-        )
-        return
-    }
-
-    // Check if battle is in the same channel
-    if (battle.channelId !== channelId) {
-        await handler.sendMessage(
-            channelId,
-            '❌ You can only add test players to battles in this channel.'
-        )
-        return
-    }
-
-    // Check if user is the admin who started the battle
-    if (battle.adminId !== userId) {
-        await handler.sendMessage(
-            channelId,
-            '❌ Only the admin who started the battle can add test players.'
+            '❌ No active battle found where you are the admin. Start a battle with `/rumble` or `/rumble_reward` first.'
         )
         return
     }
@@ -582,21 +565,15 @@ bot.onSlashCommand('test2', async (handler, { channelId, spaceId, userId }) => {
     // Track channel for public battle announcements
     trackChannelForPublicBattles(channelId, spaceId)
     
-    // Check if there's an active battle (public or private)
+    // Find any active battle in this channel (public or private)
     // For public battles, allow from any town
     // For private battles, only allow from the same town
-    let battle = getActivePublicBattle()
-    if (!battle) {
-        battle = getActivePrivateBattle(spaceId || '')
-    }
-    if (!battle) {
-        battle = getActiveBattle()
-    }
+    let battle = getBattleByChannelId(channelId)
     
     if (!battle) {
         await handler.sendMessage(
             channelId,
-            '❌ No active battle found. Start a battle with `/rumble` or `/rumble_reward` first.'
+            '❌ No active battle found in this channel. Start a battle with `/rumble` or `/rumble_reward` first.'
         )
         return
     }
@@ -847,8 +824,9 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
         return
     }
 
-    // Get battle by channelId to handle both public and private battles correctly
-    const battle = getBattleByChannelId(channelId)
+    // Find the battle where this user is the admin (check both public and private)
+    // This ensures we get the correct battle when multiple battles exist in the same channel
+    const battle = getBattleByChannelIdAndAdmin(channelId, userId)
     if (!battle) {
         return
     }
@@ -893,11 +871,12 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
     }
 
     // Handle battle tip (use userId from basePayload for consistency)
-    const tipHandled = await handleTip(handler, userId, amount, channelId)
+    // Pass the battle we already identified to ensure correct battle is processed
+    const tipHandled = await handleTip(handler, userId, amount, channelId, battle)
     
     if (tipHandled) {
         // Re-fetch the latest battle state from the database (handleTip may have updated it)
-        const freshBattle = (await import('./db')).getBattleByChannelId(channelId) || battle
+        const freshBattle = getBattleByBattleId(battle.battleId) || battle
         
         // Use the fresh battle object from here on
         const currentBattle = freshBattle

@@ -182,6 +182,43 @@ export function getBattleByChannelId(channelId: string): BattleState | undefined
     return undefined
 }
 
+// Get battle by channelId and adminId (searches both public and private battles)
+// This is useful when multiple battles exist in the same channel
+export function getBattleByChannelIdAndAdmin(channelId: string, adminId: string): BattleState | undefined {
+    const data = readDatabase()
+    
+    // Check public battle
+    if (data.activeBattles?.public && 
+        data.activeBattles.public.channelId === channelId && 
+        data.activeBattles.public.adminId === adminId &&
+        data.activeBattles.public.status !== 'finished') {
+        return data.activeBattles.public
+    }
+    
+    // Check private battles
+    if (data.activeBattles?.private) {
+        for (const spaceId in data.activeBattles.private) {
+            const battle = data.activeBattles.private[spaceId]
+            if (battle && 
+                battle.channelId === channelId && 
+                battle.adminId === adminId &&
+                battle.status !== 'finished') {
+                return battle
+            }
+        }
+    }
+    
+    // Legacy fallback
+    if (data.activeBattle && 
+        data.activeBattle.channelId === channelId && 
+        data.activeBattle.adminId === adminId &&
+        data.activeBattle.status !== 'finished') {
+        return data.activeBattle
+    }
+    
+    return undefined
+}
+
 // Get battle by battleId (searches both public and private battles)
 export function getBattleByBattleId(battleId: string): BattleState | undefined {
     const data = readDatabase()

@@ -1290,7 +1290,10 @@ bot.onSlashCommand('perms', async (handler, { channelId, spaceId, userId, args }
     )
 })
 
-bot.onSlashCommand('help', async (handler, { channelId }) => {
+bot.onSlashCommand('help', async (handler, { channelId, spaceId }) => {
+    // Track channel for public battle announcements
+    trackChannelForPublicBattles(channelId, spaceId)
+    
     const helpMessage = `⚔️ **RUMBLE ROYALE BOT - HELP** ⚔️\n\n` +
         `Welcome to the Battle Royale game bot! Here's how it works:\n\n` +
         `## 🎮 **How to Play**\n\n` +

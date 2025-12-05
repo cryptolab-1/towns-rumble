@@ -438,7 +438,9 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
             }
         }
     } else {
+        const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : ''
         const battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
+            `${themeText}` +
             `🔒 **Private Battle** - Only this town can join\n\n` +
             `React with ⚔️ to join the battle!\n` +
             `💰 **Reward Pool:** ${formatTokenAmount(requiredAmount)} TOWNS\n\n` +

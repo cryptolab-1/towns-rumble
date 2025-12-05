@@ -1,5 +1,5 @@
 import type { BotHandler } from '@towns-protocol/bot'
-import { getActiveBattle, getBattleByChannelId, getBattleByBattleId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, incrementPlayerStat, getPublicBattleChannels, hasBattlePermission, type BattleState } from './db'
+import { getActiveBattle, getBattleByChannelId, getBattleByBattleId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, getMassEvents, incrementPlayerStat, getPublicBattleChannels, hasBattlePermission, type BattleState } from './db'
 import { getTipAmountRange } from './ethPrice'
 
 const SWORD_EMOJI = '⚔️'
@@ -183,6 +183,7 @@ export async function startBattleLoop(
     
     const regularEvents = getRegularFightEvents()
     const reviveEvents = getReviveEvents()
+    const massEvents = getMassEvents()
     
     while (true) {
         // Wait 10 seconds
@@ -200,18 +201,51 @@ export async function startBattleLoop(
         
         round++
         
-        // Random number of fight events per round (1-4 events)
-        const numEvents = Math.floor(Math.random() * 4) + 1
         const roundDescriptions: string[] = []
         const eliminatedThisRound: string[] = []
         const revivedThisRound: string[] = []
         
-        for (let eventNum = 0; eventNum < numEvents; eventNum++) {
-            // Check if we should have a revive event (10% chance per event, but only if there are eliminated players)
-            const hasEliminated = eliminated.size > 0
-            const shouldRevive = hasEliminated && Math.random() < 0.1
+        // Check if we should have a mass event (8% chance per round, not too often)
+        const shouldMassEvent = Math.random() < 0.08
+        
+        if (shouldMassEvent && activeParticipants.length >= 3) {
+            // MASS EVENT - Natural Disaster
+            const massEventTemplate = massEvents[Math.floor(Math.random() * massEvents.length)]
+            const eventName = massEventTemplate.replace('MASS_EVENT:', '')
             
-            if (shouldRevive) {
+            // Eliminate 20-50% of active participants (minimum 2, but leave at least 1)
+            const numToEliminate = Math.max(2, Math.min(
+                Math.floor(activeParticipants.length * (0.2 + Math.random() * 0.3)), // 20-50%
+                activeParticipants.length - 1 // Always leave at least 1
+            ))
+            
+            // Randomly select participants to eliminate
+            const shuffled = [...activeParticipants].sort(() => Math.random() - 0.5)
+            const victims = shuffled.slice(0, numToEliminate)
+            
+            // Eliminate victims
+            for (const victim of victims) {
+                if (!eliminated.has(victim)) {
+                    eliminated.add(victim)
+                    eliminatedThisRound.push(victim)
+                    incrementPlayerStat(victim, 'deaths')
+                }
+            }
+            
+            // Format mass event description
+            const victimList = victims.map(v => `💀 <@${v}>`).join('\n')
+            roundDescriptions.push(`**MASS EVENT**\n\n**${eventName}:**\n${victimList}`)
+        } else {
+            // Regular round with multiple fight events
+            // Random number of fight events per round (1-4 events)
+            const numEvents = Math.floor(Math.random() * 4) + 1
+            
+            for (let eventNum = 0; eventNum < numEvents; eventNum++) {
+                // Check if we should have a revive event (10% chance per event, but only if there are eliminated players)
+                const hasEliminated = eliminated.size > 0
+                const shouldRevive = hasEliminated && Math.random() < 0.1
+                
+                if (shouldRevive) {
                 // Revive event - bring back a random eliminated player
                 const eliminatedArray = Array.from(eliminated)
                 if (eliminatedArray.length > 0) {
@@ -324,6 +358,9 @@ export async function startBattleLoop(
         let roundMessage = `⚔️ **Round ${round}**\n\n`
         roundMessage += roundDescriptions.join('\n\n')
         
+        // Check if this was a mass event (mass events already list eliminated players)
+        const isMassEvent = roundDescriptions.some(desc => desc.includes('**MASS EVENT**'))
+        
         if (revivedThisRound.length > 0) {
             if (revivedThisRound.length === 1) {
                 roundMessage += `\n\n✨ <@${revivedThisRound[0]}> has been revived and rejoined the battle!`
@@ -331,7 +368,8 @@ export async function startBattleLoop(
                 roundMessage += `\n\n✨ **Revived:** ${revivedThisRound.map(id => `<@${id}>`).join(', ')}`
             }
         }
-        if (eliminatedThisRound.length > 0) {
+        // Only show eliminated section if it's not a mass event (mass events already show eliminated players)
+        if (eliminatedThisRound.length > 0 && !isMassEvent) {
             if (eliminatedThisRound.length === 1) {
                 roundMessage += `\n\n💀 <@${eliminatedThisRound[0]}> has been eliminated!`
             } else {

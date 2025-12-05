@@ -108,6 +108,18 @@ const DEFAULT_FIGHT_EVENTS = [
     'REVIVE:{fighter2} is saved by a guardian angel and rejoins!',
     'REVIVE:{fighter1} uses a second wind ability to return!',
     'REVIVE:{fighter2} regenerates and comes back stronger!',
+    
+    // Mass events - Natural Disasters (10 total)
+    'MASS_EVENT:Earthquake',
+    'MASS_EVENT:Volcanic Eruption',
+    'MASS_EVENT:Tsunami',
+    'MASS_EVENT:Tornado',
+    'MASS_EVENT:Lightning Storm',
+    'MASS_EVENT:Avalanche',
+    'MASS_EVENT:Wildfire',
+    'MASS_EVENT:Flood',
+    'MASS_EVENT:Meteor Shower',
+    'MASS_EVENT:Sandstorm',
 ]
 
 function readDatabase(): BattleData {
@@ -441,12 +453,17 @@ export function getFightEvents(): string[] {
 
 export function getRegularFightEvents(): string[] {
     const data = readDatabase()
-    return data.fightEvents.filter(event => !event.startsWith('REVIVE:'))
+    return data.fightEvents.filter(event => !event.startsWith('REVIVE:') && !event.startsWith('MASS_EVENT:'))
 }
 
 export function getReviveEvents(): string[] {
     const data = readDatabase()
     return data.fightEvents.filter(event => event.startsWith('REVIVE:'))
+}
+
+export function getMassEvents(): string[] {
+    const data = readDatabase()
+    return data.fightEvents.filter(event => event.startsWith('MASS_EVENT:'))
 }
 
 export function addFightEvent(event: string): void {

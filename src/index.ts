@@ -543,19 +543,44 @@ bot.onSlashCommand('test', async (handler, { channelId, spaceId, userId }) => {
         testParticipants.push(fakeUserId)
     }
 
-    // Add test participants and ensure admin is included
-    const { setActiveBattle } = await import('./db')
-    const allParticipants = new Set([userId, ...battle.participants, ...testParticipants])
-    battle.participants = Array.from(allParticipants)
+    // Add test participants using addParticipant to ensure proper database updates
+    // Also ensure admin is included
+    const { addParticipant, setActivePrivateBattle, setActivePublicBattle } = await import('./db')
+    
+    // Ensure admin is in the battle
+    if (!battle.participants.includes(userId)) {
+        addParticipant(battle.battleId, userId)
+    }
+    
+    // Add test participants
+    let addedCount = 0
+    for (const fakeUserId of testParticipants) {
+        if (addParticipant(battle.battleId, fakeUserId)) {
+            addedCount++
+        }
+    }
+    
+    // Mark battle as test and update it
     battle.isTest = true
-    setActiveBattle(battle)
+    // Re-fetch battle to get updated participant list
+    const updatedBattle = getBattleByBattleId(battle.battleId) || battle
+    updatedBattle.isTest = true
+    
+    if (updatedBattle.isPrivate) {
+        setActivePrivateBattle(updatedBattle.spaceId, updatedBattle)
+    } else {
+        setActivePublicBattle(updatedBattle)
+    }
 
+    // Get final participant count from updated battle
+    const finalBattle = getBattleByBattleId(battle.battleId) || updatedBattle
+    
     await handler.sendMessage(
         channelId,
         `🧪 **TEST MODE ACTIVATED** 🧪\n\n` +
-        `Added **5 test players** to the battle!\n` +
-        `Current participants: **${battle.participants.length}** (including you)\n\n` +
-        `${battle.rewardAmount ? `💰 **Reward Pool:** ${(await import('./token')).formatTokenAmount(BigInt(battle.rewardAmount))} TOWNS\n` : ''}` +
+        `Added **${addedCount} test players** to the battle!\n` +
+        `Current participants: **${finalBattle.participants.length}** (including you)\n\n` +
+        `${finalBattle.rewardAmount ? `💰 **Reward Pool:** ${(await import('./token')).formatTokenAmount(BigInt(finalBattle.rewardAmount))} TOWNS\n` : ''}` +
         `⚠️ **Note:** In test mode, all rewards will be sent to your address (admin).\n\n` +
         `You can now tip **$1 USD worth of ETH** to launch the test battle!`
     )

@@ -1306,4 +1306,34 @@ bot.onMessage(async (handler, { message, channelId, spaceId, eventId, createdAt 
 })
 
 const app = bot.start()
+
+// Serve bot metadata at .well-known/agent-metadata.json
+app.get('/.well-known/agent-metadata.json', (c) => {
+    const metadata = {
+        name: 'Rumble Royale Bot',
+        description: 'A battle royale game bot for Towns Protocol. Start epic battles, compete for rewards, and climb the leaderboard!',
+        version: '1.0.0',
+        author: 'Towns Rumble',
+        homepage: 'https://github.com/cryptolab-1/towns-rumble',
+        repository: 'https://github.com/cryptolab-1/towns-rumble',
+        features: [
+            'Battle Royale Game',
+            'Public and Private Battles',
+            'TOWNS Token Rewards',
+            'Leaderboard System',
+            'Themed Battles (Default & Christmas)',
+            'Mass Events',
+            'Player Statistics'
+        ],
+        commands: [
+            '/rumble - Start a battle royale without rewards',
+            '/rumble_reward - Start a battle royale with TOWNS rewards',
+            '/cancel - Cancel an active battle',
+            '/leaderboard - View top players',
+            '/perms - Manage battle permissions'
+        ]
+    }
+    return c.json(metadata)
+})
+
 export default app

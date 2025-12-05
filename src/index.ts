@@ -1361,6 +1361,15 @@ bot.onMessage(async (handler, { message, channelId, spaceId, eventId, createdAt 
 
 const app = bot.start()
 
+// Health check endpoint
+app.get('/', (c) => {
+    return c.json({ status: 'ok', service: 'Rumble Royale Bot' })
+})
+
+app.head('/', (c) => {
+    return c.text('', 200)
+})
+
 // Serve bot metadata at .well-known/agent-metadata.json
 app.get('/.well-known/agent-metadata.json', (c) => {
     const metadata = {

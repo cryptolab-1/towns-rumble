@@ -1,7 +1,24 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs'
-import { join } from 'path'
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
+import { join, dirname } from 'path'
 
 const dbPath = process.env.DATABASE_PATH || join(process.cwd(), 'battle.json')
+
+// Log the database path for debugging
+console.log(`📁 Database path: ${dbPath}`)
+console.log(`📁 DATABASE_PATH env var: ${process.env.DATABASE_PATH || 'NOT SET'}`)
+
+// Ensure directory exists for database file
+try {
+    const dbDir = dirname(dbPath)
+    if (!existsSync(dbDir)) {
+        mkdirSync(dbDir, { recursive: true })
+        console.log(`📁 Created database directory: ${dbDir}`)
+    } else {
+        console.log(`📁 Database directory exists: ${dbDir}`)
+    }
+} catch (error) {
+    console.error('Error creating database directory:', error)
+}
 
 export interface BattleState {
     battleId: string
@@ -804,4 +821,5 @@ export function getBattlePermissions(spaceId: string): string[] {
 const initialData = readDatabase()
 console.log(`📊 Battle database initialized (${initialData.fightEvents.length} fight events)`)
 console.log(`📁 Database path: ${dbPath}`)
+console.log(`📁 DATABASE_PATH env var: ${process.env.DATABASE_PATH || 'NOT SET - using fallback'}`)
 

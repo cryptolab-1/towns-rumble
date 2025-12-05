@@ -1009,8 +1009,8 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
             }
         }
 
-        // Start battle loop in background (identify battle by channel)
-        startBattleLoop(bot, channelId).catch((error) => {
+        // Start battle loop in background (identify battle by battleId to avoid conflicts)
+        startBattleLoop(bot, channelId, currentBattle.battleId).catch((error) => {
             console.error('Error in battle loop:', error)
             handler.sendMessage(channelId, '❌ An error occurred during the battle.')
         })

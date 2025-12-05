@@ -1,5 +1,5 @@
 import type { BotHandler } from '@towns-protocol/bot'
-import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, incrementPlayerStat, getPublicBattleChannels, type BattleState } from './db'
+import { getActiveBattle, getBattleByChannelId, getBattleByBattleId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, incrementPlayerStat, getPublicBattleChannels, type BattleState } from './db'
 import { getTipAmountRange } from './ethPrice'
 
 const SWORD_EMOJI = '⚔️'
@@ -157,12 +157,19 @@ export async function handleTip(
 
 export async function startBattleLoop(
     bot: any,
-    channelId: string
+    channelId: string,
+    battleId?: string
 ): Promise<void> {
-    const battle = getBattleByChannelId(channelId)
+    // Use battleId if provided, otherwise fall back to channelId lookup
+    const battle = battleId 
+        ? getBattleByBattleId(battleId)
+        : getBattleByChannelId(channelId)
     if (!battle || battle.status !== 'active') {
         return
     }
+    
+    // Store battleId for use throughout the loop
+    const currentBattleId = battle.battleId
     
     let participants = [...battle.participants]
     const eliminated = new Set(battle.eliminated)
@@ -175,9 +182,9 @@ export async function startBattleLoop(
         // Wait 10 seconds
         await new Promise(resolve => setTimeout(resolve, 10000))
         
-        // Check if battle still exists and is active (by channel)
-        const currentBattle = getBattleByChannelId(channelId)
-        if (!currentBattle || currentBattle.status !== 'active') {
+        // Check if battle still exists and is active (by battleId to avoid conflicts)
+        const currentBattle = getBattleByBattleId(currentBattleId)
+        if (!currentBattle || currentBattle.status !== 'active' || currentBattle.battleId !== currentBattleId) {
             return
         }
         
@@ -259,8 +266,8 @@ export async function startBattleLoop(
         }
         
         // Track top 3 winners as participants are eliminated (in order of elimination)
-        const updatedBattle = getBattleByChannelId(channelId)
-        if (updatedBattle && eliminatedThisRound.length > 0) {
+        const updatedBattle = getBattleByBattleId(currentBattleId)
+        if (updatedBattle && updatedBattle.battleId === currentBattleId && eliminatedThisRound.length > 0) {
             // Create a temporary set to track eliminations as we process them
             const tempEliminated = new Set(eliminated)
             // Remove the eliminations from this round to calculate counts correctly
@@ -293,8 +300,8 @@ export async function startBattleLoop(
         }
         
         // Update battle state
-        const updatedBattle2 = getBattleByChannelId(channelId)
-        if (updatedBattle2) {
+        const updatedBattle2 = getBattleByBattleId(currentBattleId)
+        if (updatedBattle2 && updatedBattle2.battleId === currentBattleId) {
             updatedBattle2.currentRound = round
             updatedBattle2.eliminated = Array.from(eliminated)
             if (updatedBattle && updatedBattle.winners.length > 0) {
@@ -355,8 +362,8 @@ export async function startBattleLoop(
     }
     
     // Determine winners (top 3)
-    const finalBattle = getBattleByChannelId(channelId)
-    if (finalBattle) {
+    const finalBattle = getBattleByBattleId(currentBattleId)
+    if (finalBattle && finalBattle.battleId === currentBattleId) {
         const remaining = participants.filter(p => !eliminated.has(p))
         
         if (remaining.length >= 1) {

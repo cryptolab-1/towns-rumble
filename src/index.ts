@@ -1366,8 +1366,12 @@ app.get('/', (c) => {
     return c.json({ status: 'ok', service: 'Rumble Royale Bot' })
 })
 
-app.head('/', (c) => {
-    return c.text('', 200)
+// Handle HEAD requests for health checks
+app.all('/', async (c) => {
+    if (c.req.method === 'HEAD') {
+        return c.text('', 200)
+    }
+    return c.json({ status: 'ok', service: 'Rumble Royale Bot' })
 })
 
 // Serve bot metadata at .well-known/agent-metadata.json

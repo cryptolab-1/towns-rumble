@@ -246,60 +246,61 @@ export async function startBattleLoop(
                 const shouldRevive = hasEliminated && Math.random() < 0.1
                 
                 if (shouldRevive) {
-                // Revive event - bring back a random eliminated player
-                const eliminatedArray = Array.from(eliminated)
-                if (eliminatedArray.length > 0) {
-                    const revivedPlayer = eliminatedArray[Math.floor(Math.random() * eliminatedArray.length)]
-                    eliminated.delete(revivedPlayer)
-                    revivedThisRound.push(revivedPlayer)
-                    
-                    // Track revive stat
-                    incrementPlayerStat(revivedPlayer, 'revives')
-                    
-                    const reviveTemplate = reviveEvents[Math.floor(Math.random() * reviveEvents.length)]
-                    const reviveDescription = reviveTemplate
-                        .replace('REVIVE:', '')
-                        .replace('{fighter1}', `<@${revivedPlayer}>`)
-                        .replace('{fighter2}', `<@${revivedPlayer}>`)
-                    roundDescriptions.push(reviveDescription)
-                }
-            } else {
-                // Regular fight event
-                const currentActive = participants.filter(p => !eliminated.has(p))
-                if (currentActive.length < 2) break
-                
-                let fighter1Index = Math.floor(Math.random() * currentActive.length)
-                let fighter2Index = Math.floor(Math.random() * currentActive.length)
-                
-                // Make sure they're different
-                while (fighter2Index === fighter1Index && currentActive.length > 1) {
-                    fighter2Index = Math.floor(Math.random() * currentActive.length)
-                }
-                
-                const fighter1 = currentActive[fighter1Index]
-                const fighter2 = currentActive[fighter2Index]
-                
-                // Get random regular fight event
-                const eventTemplate = regularEvents[Math.floor(Math.random() * regularEvents.length)]
-                const fightDescription = eventTemplate
-                    .replace('{fighter1}', `<@${fighter1}>`)
-                    .replace('{fighter2}', `<@${fighter2}>`)
-                roundDescriptions.push(fightDescription)
-                
-                // Randomly eliminate one fighter (30% chance per fight event)
-                const shouldEliminate = Math.random() < 0.3
-                if (shouldEliminate && currentActive.length > 1) {
-                    const victim = Math.random() < 0.5 ? fighter1 : fighter2
-                    const killer = victim === fighter1 ? fighter2 : fighter1
-                    
-                    // Only eliminate if not already eliminated this round
-                    if (!eliminated.has(victim)) {
-                        eliminated.add(victim)
-                        eliminatedThisRound.push(victim)
+                    // Revive event - bring back a random eliminated player
+                    const eliminatedArray = Array.from(eliminated)
+                    if (eliminatedArray.length > 0) {
+                        const revivedPlayer = eliminatedArray[Math.floor(Math.random() * eliminatedArray.length)]
+                        eliminated.delete(revivedPlayer)
+                        revivedThisRound.push(revivedPlayer)
                         
-                        // Track stats: killer gets a kill, victim gets a death
-                        incrementPlayerStat(killer, 'kills')
-                        incrementPlayerStat(victim, 'deaths')
+                        // Track revive stat
+                        incrementPlayerStat(revivedPlayer, 'revives')
+                        
+                        const reviveTemplate = reviveEvents[Math.floor(Math.random() * reviveEvents.length)]
+                        const reviveDescription = reviveTemplate
+                            .replace('REVIVE:', '')
+                            .replace('{fighter1}', `<@${revivedPlayer}>`)
+                            .replace('{fighter2}', `<@${revivedPlayer}>`)
+                        roundDescriptions.push(reviveDescription)
+                    }
+                } else {
+                    // Regular fight event
+                    const currentActive = participants.filter(p => !eliminated.has(p))
+                    if (currentActive.length < 2) break
+                    
+                    let fighter1Index = Math.floor(Math.random() * currentActive.length)
+                    let fighter2Index = Math.floor(Math.random() * currentActive.length)
+                    
+                    // Make sure they're different
+                    while (fighter2Index === fighter1Index && currentActive.length > 1) {
+                        fighter2Index = Math.floor(Math.random() * currentActive.length)
+                    }
+                    
+                    const fighter1 = currentActive[fighter1Index]
+                    const fighter2 = currentActive[fighter2Index]
+                    
+                    // Get random regular fight event
+                    const eventTemplate = regularEvents[Math.floor(Math.random() * regularEvents.length)]
+                    const fightDescription = eventTemplate
+                        .replace('{fighter1}', `<@${fighter1}>`)
+                        .replace('{fighter2}', `<@${fighter2}>`)
+                    roundDescriptions.push(fightDescription)
+                    
+                    // Randomly eliminate one fighter (30% chance per fight event)
+                    const shouldEliminate = Math.random() < 0.3
+                    if (shouldEliminate && currentActive.length > 1) {
+                        const victim = Math.random() < 0.5 ? fighter1 : fighter2
+                        const killer = victim === fighter1 ? fighter2 : fighter1
+                        
+                        // Only eliminate if not already eliminated this round
+                        if (!eliminated.has(victim)) {
+                            eliminated.add(victim)
+                            eliminatedThisRound.push(victim)
+                            
+                            // Track stats: killer gets a kill, victim gets a death
+                            incrementPlayerStat(killer, 'kills')
+                            incrementPlayerStat(victim, 'deaths')
+                        }
                     }
                 }
             }

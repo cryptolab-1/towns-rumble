@@ -65,8 +65,21 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
     // Track this channel for public battle announcements
     trackChannelForPublicBattles(channelId, spaceId)
     
+    // Debug: Log existing battles before creating new one
+    if (!isPrivate) {
+        const existingPrivate = getActivePrivateBattle(spaceId)
+        console.log(`[rumble] Creating public battle. Existing private battle in space ${spaceId}: ${existingPrivate ? existingPrivate.battleId : 'none'}`)
+    }
+    
     // Initiate new battle without rewards
     const battleId = initiateBattle(handler, channelId, spaceId, userId, undefined, isPrivate)
+    
+    // Debug: Verify both battles still exist after creation
+    if (!isPrivate) {
+        const existingPrivate = getActivePrivateBattle(spaceId)
+        const newPublic = getActivePublicBattle()
+        console.log(`[rumble] After creating public battle ${battleId}: Private=${existingPrivate ? existingPrivate.battleId : 'none'}, Public=${newPublic ? newPublic.battleId : 'none'}`)
+    }
     
     // For public battles, broadcast to all tracked channels
     if (!isPrivate) {

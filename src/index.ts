@@ -535,20 +535,48 @@ bot.onSlashCommand('cancel', async (handler, { channelId, spaceId, userId }) => 
         return
     }
 
-    // Check if there's an active battle
-    const battle = getActiveBattle()
+    // Check for active battles - prioritize public, then private in this space
+    let battle: BattleState | undefined = undefined
+    
+    // First check for public battle
+    const publicBattle = getActivePublicBattle()
+    if (publicBattle && publicBattle.status !== 'finished') {
+        battle = publicBattle
+    }
+    
+    // If no public battle, check for private battle in this space
+    if (!battle && spaceId) {
+        const privateBattle = getActivePrivateBattle(spaceId)
+        if (privateBattle && privateBattle.status !== 'finished') {
+            battle = privateBattle
+        }
+    }
+    
     if (!battle) {
         await handler.sendMessage(channelId, '❌ No active battle to cancel.')
         return
     }
 
-    // Check if battle is in the same channel
-    if (battle.channelId !== channelId) {
+    // For private battles, check if battle is in the same channel
+    if (battle.isPrivate && battle.channelId !== channelId) {
         await handler.sendMessage(
             channelId,
-            '❌ You can only cancel battles from the channel where they were started.'
+            '❌ You can only cancel private battles from the channel where they were started.'
         )
         return
+    }
+    
+    // For public battles, allow canceling from any tracked channel
+    if (!battle.isPrivate) {
+        const channels = getPublicBattleChannels()
+        const isTrackedChannel = channels.some(ch => ch.channelId === channelId)
+        if (!isTrackedChannel && battle.channelId !== channelId) {
+            await handler.sendMessage(
+                channelId,
+                '❌ You can only cancel public battles from a tracked channel.'
+            )
+            return
+        }
     }
 
     // Check if user is the admin who started the battle
@@ -569,9 +597,15 @@ bot.onSlashCommand('cancel', async (handler, { channelId, spaceId, userId }) => 
         return
     }
 
-    // Cancel the battle
-    const { setActiveBattle } = await import('./db')
-    setActiveBattle(undefined)
+    // Cancel the battle - properly clear only this specific battle
+    const { finishBattle, setActivePublicBattle, setActivePrivateBattle } = await import('./db')
+    finishBattle(battle)
+    
+    if (battle.isPrivate) {
+        setActivePrivateBattle(battle.spaceId, undefined)
+    } else {
+        setActivePublicBattle(undefined)
+    }
 
     const participantCount = battle.participants.length
     const rewardInfo = battle.rewardAmount 
@@ -582,7 +616,7 @@ bot.onSlashCommand('cancel', async (handler, { channelId, spaceId, userId }) => 
         `The battle has been cancelled by the admin.\n` +
         `${participantCount > 0 ? `${participantCount} participant${participantCount > 1 ? 's were' : ' was'} removed from the battle.\n` : ''}` +
         `${rewardInfo}\n` +
-        `You can start a new battle with \`/rumble\`.`
+        `You can start a new battle with \`/rumble\` or \`/rumble_reward\`.`
 
     if (battle.isPrivate) {
         // Private battle - only send to original channel

@@ -13,6 +13,38 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
     commands,
 })
 
+// Helper function to set up auto-cancel timer for public battles
+function setupAutoCancelTimer(battleId: string) {
+    setTimeout(async () => {
+        const currentBattle = getActivePublicBattle()
+        // Only cancel if battle still exists, hasn't been launched, and matches this battleId
+        if (currentBattle && 
+            currentBattle.battleId === battleId && 
+            (currentBattle.status === 'pending_tip' || currentBattle.status === 'pending_approval')) {
+            
+            console.log(`[auto-cancel] Auto-cancelling public battle ${battleId} after 10 minutes`)
+            
+            // Cancel the battle
+            finishBattle(currentBattle)
+            setActivePublicBattle(undefined)
+            
+            // Broadcast cancellation message to all tracked channels
+            const channels = getPublicBattleChannels()
+            const cancelMessage = `❌ **BATTLE AUTO-CANCELLED** ❌\n\n` +
+                `The public battle was automatically cancelled after 10 minutes because it was not launched.\n\n` +
+                `You can start a new battle with \`/rumble\` or \`/rumble_reward\`.`
+            
+            for (const channel of channels) {
+                try {
+                    await bot.sendMessage(channel.channelId, cancelMessage)
+                } catch (error) {
+                    console.error(`Error broadcasting auto-cancel message to channel ${channel.channelId}:`, error)
+                }
+            }
+        }
+    }, 10 * 60 * 1000) // 10 minutes in milliseconds
+}
+
 bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args }) => {
     // Track channel for public battle announcements
     trackChannelForPublicBattles(channelId, spaceId)
@@ -169,34 +201,7 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
             setActivePublicBattle(battle)
             
             // Set up 10-minute auto-cancel timer for public battles
-            setTimeout(async () => {
-                const currentBattle = getActivePublicBattle()
-                // Only cancel if battle still exists, hasn't been launched, and matches this battleId
-                if (currentBattle && 
-                    currentBattle.battleId === battleId && 
-                    (currentBattle.status === 'pending_tip' || currentBattle.status === 'pending_approval')) {
-                    
-                    console.log(`[auto-cancel] Auto-cancelling public battle ${battleId} after 10 minutes`)
-                    
-                    // Cancel the battle
-                    finishBattle(currentBattle)
-                    setActivePublicBattle(undefined)
-                    
-                    // Broadcast cancellation message to all tracked channels
-                    const channels = getPublicBattleChannels()
-                    const cancelMessage = `❌ **BATTLE AUTO-CANCELLED** ❌\n\n` +
-                        `The public battle was automatically cancelled after 10 minutes because it was not launched.\n\n` +
-                        `You can start a new battle with \`/rumble\`.`
-                    
-                    for (const channel of channels) {
-                        try {
-                            await bot.sendMessage(channel.channelId, cancelMessage)
-                        } catch (error) {
-                            console.error(`Error broadcasting auto-cancel message to channel ${channel.channelId}:`, error)
-                        }
-                    }
-                }
-            }, 10 * 60 * 1000) // 10 minutes in milliseconds
+            setupAutoCancelTimer(battleId)
         }
     }
 })
@@ -403,6 +408,9 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                         console.error(`Error broadcasting to channel ${channel.channelId}:`, error)
                     }
                 }
+                
+                // Set up auto-cancel timer for public battles requiring approval
+                setupAutoCancelTimer(battleId)
             } else {
                 const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : ''
                 const battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
@@ -511,34 +519,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
             setActivePublicBattle(battle)
             
             // Set up 10-minute auto-cancel timer for public battles
-            setTimeout(async () => {
-                const currentBattle = getActivePublicBattle()
-                // Only cancel if battle still exists, hasn't been launched, and matches this battleId
-                if (currentBattle && 
-                    currentBattle.battleId === battleId && 
-                    (currentBattle.status === 'pending_tip' || currentBattle.status === 'pending_approval')) {
-                    
-                    console.log(`[auto-cancel] Auto-cancelling public battle ${battleId} after 10 minutes`)
-                    
-                    // Cancel the battle
-                    finishBattle(currentBattle)
-                    setActivePublicBattle(undefined)
-                    
-                    // Broadcast cancellation message to all tracked channels
-                    const channels = getPublicBattleChannels()
-                    const cancelMessage = `❌ **BATTLE AUTO-CANCELLED** ❌\n\n` +
-                        `The public battle was automatically cancelled after 10 minutes because it was not launched.\n\n` +
-                        `You can start a new battle with \`/rumble\` or \`/rumble_reward\`.`
-                    
-                    for (const channel of channels) {
-                        try {
-                            await bot.sendMessage(channel.channelId, cancelMessage)
-                        } catch (error) {
-                            console.error(`Error broadcasting auto-cancel message to channel ${channel.channelId}:`, error)
-                        }
-                    }
-                }
-            }, 10 * 60 * 1000) // 10 minutes in milliseconds
+            setupAutoCancelTimer(battleId)
         }
     }
 })
@@ -656,8 +637,14 @@ bot.onInteractionResponse(async (handler, { response, channelId, userId }) => {
                             const requiredAmount = BigInt(battle.rewardAmount || '0')
                             
                             battle.status = 'pending_tip'
-                            const { setActiveBattle } = await import('./db')
+                            const { setActiveBattle, setActivePublicBattle } = await import('./db')
                             setActiveBattle(battle)
+                            
+                            // Set up auto-cancel timer for public battles when approval is confirmed
+                            if (!battle.isPrivate) {
+                                setActivePublicBattle(battle)
+                                setupAutoCancelTimer(battle.battleId)
+                            }
                             
                             await handler.sendMessage(
                                 channelId,

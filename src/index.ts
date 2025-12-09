@@ -578,15 +578,8 @@ bot.onSlashCommand('cancel', async (handler, { channelId, spaceId, userId }) => 
             return
         }
     }
-
-    // Check if user is the admin who started the battle
-    if (battle.adminId !== userId) {
-        await handler.sendMessage(
-            channelId,
-            '❌ Only the admin who started the battle can cancel it.'
-        )
-        return
-    }
+    
+    // Note: Any admin with permission can cancel battles (permission already checked above)
 
     // Check if battle has already started
     if (battle.status === 'active' || battle.status === 'finished') {
@@ -613,7 +606,7 @@ bot.onSlashCommand('cancel', async (handler, { channelId, spaceId, userId }) => 
         : ''
 
     const cancelMessage = `❌ **BATTLE CANCELLED** ❌\n\n` +
-        `The battle has been cancelled by the admin.\n` +
+        `The battle has been cancelled by <@${userId}>.\n` +
         `${participantCount > 0 ? `${participantCount} participant${participantCount > 1 ? 's were' : ' was'} removed from the battle.\n` : ''}` +
         `${rewardInfo}\n` +
         `You can start a new battle with \`/rumble\` or \`/rumble_reward\`.`

@@ -1,5 +1,5 @@
 import type { BotHandler } from '@towns-protocol/bot'
-import { getActiveBattle, getBattleByChannelId, getBattleByBattleId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, getMassEvents, incrementPlayerStat, getPublicBattleChannels, hasBattlePermission, getUsername, getUsernames, type BattleState } from './db'
+import { getActiveBattle, getBattleByChannelId, getBattleByBattleId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, getMassEvents, incrementPlayerStat, getPublicBattleChannels, hasBattlePermission, getUsername, getUsernames, getFakeUserAddress, type BattleState } from './db'
 import { getTipAmountRange } from './ethPrice'
 
 const SWORD_EMOJI = '⚔️'
@@ -549,8 +549,12 @@ async function distributeRewards(bot: any, battle: any): Promise<void> {
         })
     } else {
         // Get wallet addresses for winners and create transferFrom calls
+        // For fake users, use the mapped admin address
         if (battle.winners.length >= 1) {
-            const firstPlaceWallet = await getSmartAccountFromUserId(bot, { userId: battle.winners[0] })
+            const fakeAddress1 = getFakeUserAddress(battle.winners[0])
+            const firstPlaceWallet = fakeAddress1 
+                ? (fakeAddress1 as `0x${string}`)
+                : await getSmartAccountFromUserId(bot, { userId: battle.winners[0] })
             calls.push({
                 to: tokenAddress,
                 abi: ERC20_ABI,
@@ -560,7 +564,10 @@ async function distributeRewards(bot: any, battle: any): Promise<void> {
         }
         
         if (battle.winners.length >= 2) {
-            const secondPlaceWallet = await getSmartAccountFromUserId(bot, { userId: battle.winners[1] })
+            const fakeAddress2 = getFakeUserAddress(battle.winners[1])
+            const secondPlaceWallet = fakeAddress2 
+                ? (fakeAddress2 as `0x${string}`)
+                : await getSmartAccountFromUserId(bot, { userId: battle.winners[1] })
             calls.push({
                 to: tokenAddress,
                 abi: ERC20_ABI,
@@ -570,7 +577,10 @@ async function distributeRewards(bot: any, battle: any): Promise<void> {
         }
         
         if (battle.winners.length >= 3) {
-            const thirdPlaceWallet = await getSmartAccountFromUserId(bot, { userId: battle.winners[2] })
+            const fakeAddress3 = getFakeUserAddress(battle.winners[2])
+            const thirdPlaceWallet = fakeAddress3 
+                ? (fakeAddress3 as `0x${string}`)
+                : await getSmartAccountFromUserId(bot, { userId: battle.winners[2] })
             calls.push({
                 to: tokenAddress,
                 abi: ERC20_ABI,

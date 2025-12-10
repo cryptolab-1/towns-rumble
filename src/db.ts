@@ -70,6 +70,7 @@ interface BattleData {
     messageIdToBattleId?: Record<string, string> // messageId (announcement eventId) -> battleId
     battlePermissions?: Record<string, string[]> // spaceId -> userId[] (users with permission to launch/cancel battles in this space)
     usernames?: Record<string, string> // userId -> username (cache)
+    fakeUserAddresses?: Record<string, string> // fakeUserId -> adminAddress (for testing payouts)
 }
 
 const DEFAULT_FIGHT_EVENTS = [
@@ -235,6 +236,9 @@ function readDatabase(): BattleData {
             }
             if (!parsed.usernames) {
                 parsed.usernames = {}
+            }
+            if (!parsed.fakeUserAddresses) {
+                parsed.fakeUserAddresses = {}
             }
             // Initialize themes if not exists
             if (!parsed.themes) {
@@ -867,6 +871,36 @@ export function setUsername(userId: string, username: string): void {
  */
 export function getUsernames(userIds: string[]): string[] {
     return userIds.map(id => getUsername(id))
+}
+
+/**
+ * Set fake user address mapping (for testing payouts)
+ */
+export function setFakeUserAddress(fakeUserId: string, adminAddress: string): void {
+    const data = readDatabase()
+    if (!data.fakeUserAddresses) {
+        data.fakeUserAddresses = {}
+    }
+    data.fakeUserAddresses[fakeUserId] = adminAddress
+    writeDatabase(data)
+}
+
+/**
+ * Get address for a user (returns mapped address if fake user, otherwise null)
+ */
+export function getFakeUserAddress(userId: string): string | null {
+    const data = readDatabase()
+    if (data.fakeUserAddresses && data.fakeUserAddresses[userId]) {
+        return data.fakeUserAddresses[userId]
+    }
+    return null
+}
+
+/**
+ * Check if a user ID is a fake user
+ */
+export function isFakeUser(userId: string): boolean {
+    return userId.includes('test') || getFakeUserAddress(userId) !== null
 }
 
 // Initialize database on first load

@@ -882,6 +882,20 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId, messageId
             return
         }
         
+        // Get admin's address to map fake users to
+        const { getSmartAccountFromUserId } = await import('@towns-protocol/bot')
+        let adminAddress: `0x${string}` | null = null
+        try {
+            adminAddress = (await getSmartAccountFromUserId(bot, { userId: battle.adminId as `0x${string}` })) as `0x${string}`
+        } catch (error) {
+            console.error('Error getting admin address for fake users:', error)
+            await handler.sendMessage(
+                channelId,
+                '❌ Error getting admin address. Cannot add fake users.'
+            )
+            return
+        }
+        
         // Generate 5 fake participant IDs
         const testParticipants: string[] = []
         for (let i = 1; i <= 5; i++) {
@@ -889,11 +903,15 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId, messageId
             testParticipants.push(fakeUserId)
         }
         
-        // Add test participants using addParticipant
-        const { addParticipant, setActivePrivateBattle, setActivePublicBattle } = await import('./db')
+        // Add test participants using addParticipant and map their addresses to admin
+        const { addParticipant, setFakeUserAddress } = await import('./db')
         let addedCount = 0
         for (const fakeUserId of testParticipants) {
             if (addParticipant(battle.battleId, fakeUserId)) {
+                // Map fake user to admin's address for reward distribution
+                if (adminAddress) {
+                    setFakeUserAddress(fakeUserId, adminAddress)
+                }
                 addedCount++
             }
         }
@@ -1369,11 +1387,11 @@ bot.onSlashCommand('help', async (handler, { channelId, spaceId }) => {
         `• **2nd Place**: 25% of reward pool\n` +
         `• **3rd Place**: 15% of reward pool\n\n` +
         `📊 **Commands**\n\n` +
-        `• \`/rumble\` - Start a battle without rewards\n` +
-        `• \`/rumble_reward AMOUNT\` - Start a battle with TOWNS rewards\n` +
-        `• \`/cancel\` - Cancel an active battle (admin only)\n` +
-        `• \`/leaderboard\` - View top 10 players, winners, kills, deaths, and revives\n` +
-        `• \`/perms [add|remove|list] [userId]\` - Manage battle permissions (admin only)\n` +
+        `• \`/rumble\` - Start a battle without rewards\n\n` +
+        `• \`/rumble_reward AMOUNT\` - Start a battle with TOWNS rewards\n\n` +
+        `• \`/cancel\` - Cancel an active battle (admin only)\n\n` +
+        `• \`/leaderboard\` - View top 10 players, winners, kills, deaths, and revives\n\n` +
+        `• \`/perms [add|remove|list] [userId]\` - Manage battle permissions (admin only)\n\n` +
         `• \`/help\` - Show this help message\n\n` +
         `🎨 **Themes**\n\n` +
         `• **Default Theme**: Regular battle events\n` +

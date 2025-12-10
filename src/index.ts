@@ -164,6 +164,12 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
                 if (sentMessage?.eventId) {
                     setMessageIdToBattleId(sentMessage.eventId, battleId)
                     console.log(`[rumble] Stored messageId mapping: ${sentMessage.eventId} -> ${battleId}`)
+                    // Add sword reaction to make it easier for players to join
+                    try {
+                        await bot.sendReaction(channel.channelId, sentMessage.eventId, '⚔️')
+                    } catch (error) {
+                        console.error(`Error adding reaction to announcement in channel ${channel.channelId}:`, error)
+                    }
                 }
                 // Track channel if message was sent successfully (in case it wasn't already tracked)
                 trackChannelForPublicBattles(channel.channelId, channel.spaceId, channel.spaceName, sentMessage?.eventId)
@@ -188,6 +194,12 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
         if (sentMessage?.eventId) {
             setMessageIdToBattleId(sentMessage.eventId, battleId)
             console.log(`[rumble] Stored messageId mapping: ${sentMessage.eventId} -> ${battleId}`)
+            // Add sword reaction to make it easier for players to join
+            try {
+                await handler.sendReaction(channelId, sentMessage.eventId, '⚔️')
+            } catch (error) {
+                console.error(`Error adding reaction to announcement:`, error)
+            }
         }
     }
 
@@ -401,6 +413,12 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                         if (sentMessage?.eventId) {
                             setMessageIdToBattleId(sentMessage.eventId, battleId)
                             console.log(`[rumble_reward] Stored messageId mapping: ${sentMessage.eventId} -> ${battleId}`)
+                            // Add sword reaction to make it easier for players to join
+                            try {
+                                await bot.sendReaction(channel.channelId, sentMessage.eventId, '⚔️')
+                            } catch (error) {
+                                console.error(`Error adding reaction to announcement in channel ${channel.channelId}:`, error)
+                            }
                         }
                         // Track channel if message was sent successfully (in case it wasn't already tracked)
                         trackChannelForPublicBattles(channel.channelId, channel.spaceId, channel.spaceName, sentMessage?.eventId)
@@ -428,6 +446,12 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                 if (sentMessage?.eventId) {
                     setMessageIdToBattleId(sentMessage.eventId, battleId)
                     console.log(`[rumble_reward] Stored messageId mapping: ${sentMessage.eventId} -> ${battleId}`)
+                    // Add sword reaction to make it easier for players to join
+                    try {
+                        await handler.sendReaction(channelId, sentMessage.eventId, '⚔️')
+                    } catch (error) {
+                        console.error(`Error adding reaction to announcement:`, error)
+                    }
                 }
             }
             return
@@ -485,6 +509,12 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                 if (sentMessage?.eventId) {
                     setMessageIdToBattleId(sentMessage.eventId, battleId)
                     console.log(`[rumble_reward] Stored messageId mapping: ${sentMessage.eventId} -> ${battleId}`)
+                    // Add sword reaction to make it easier for players to join
+                    try {
+                        await bot.sendReaction(channel.channelId, sentMessage.eventId, '⚔️')
+                    } catch (error) {
+                        console.error(`Error adding reaction to announcement in channel ${channel.channelId}:`, error)
+                    }
                 }
             } catch (error) {
                 console.error(`Error broadcasting to channel ${channel.channelId}:`, error)
@@ -506,6 +536,12 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
         if (sentMessage?.eventId) {
             setMessageIdToBattleId(sentMessage.eventId, battleId)
             console.log(`[rumble_reward] Stored messageId mapping: ${sentMessage.eventId} -> ${battleId}`)
+            // Add sword reaction to make it easier for players to join
+            try {
+                await handler.sendReaction(channelId, sentMessage.eventId, '⚔️')
+            } catch (error) {
+                console.error(`Error adding reaction to announcement:`, error)
+            }
         }
     }
 

@@ -827,17 +827,16 @@ export function getBattlePermissions(spaceId: string): string[] {
 }
 
 /**
- * Format a user ID to a shortened, readable format
+ * Format a user ID to mention format (like @userId, without brackets)
+ * This matches the format used in join messages
  */
 export function formatUserId(userId: string): string {
-    if (!userId || !userId.startsWith('0x')) {
+    if (!userId) {
         return userId
     }
-    // Show first 6 and last 4 characters: 0x1234...5678
-    if (userId.length > 10) {
-        return `${userId.substring(0, 6)}...${userId.substring(userId.length - 4)}`
-    }
-    return userId
+    // Use @userId format (without brackets) to match join message format
+    // Towns Protocol will render this as a mention/username
+    return `@${userId}`
 }
 
 /**

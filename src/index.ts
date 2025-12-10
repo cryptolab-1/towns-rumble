@@ -606,7 +606,7 @@ bot.onSlashCommand('cancel', async (handler, { channelId, spaceId, userId }) => 
         : ''
 
     const cancelMessage = `❌ **BATTLE CANCELLED** ❌\n\n` +
-        `The battle has been cancelled by <@${userId}>.\n` +
+        `The battle has been cancelled by @${userId}.\n` +
         `${participantCount > 0 ? `${participantCount} participant${participantCount > 1 ? 's were' : ' was'} removed from the battle.\n` : ''}` +
         `${rewardInfo}\n` +
         `You can start a new battle with \`/rumble\` or \`/rumble_reward\`.`
@@ -765,7 +765,7 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId, messageId
             const finalBattle = freshBattle || battle
 
             const battleType = battle.isPrivate ? '🔒 Private Battle' : '🌐 Public Battle'
-            const joinMessage = `<@${userId}> has joined the ${battleType}! ⚔️ (${finalBattle.participants.length} participants)`
+            const joinMessage = `@${userId} has joined the ${battleType}! ⚔️ (${finalBattle.participants.length} participants)`
 
             if (battle.isPrivate) {
                 // Private battle – only notify in the current town/channel
@@ -1138,7 +1138,7 @@ bot.onSlashCommand('leaderboard', async (handler, { channelId, spaceId }) => {
     leaderboardText += '📊 **Top 10 Players** (by battles)\n'
     if (topPlayers.length > 0) {
         topPlayers.forEach((player, index) => {
-            leaderboardText += `${index + 1}. <@${player.userId}> - ${player.battles} battles\n`
+            leaderboardText += `${index + 1}. @${player.userId} - ${player.battles} battles\n`
         })
     } else {
         leaderboardText += 'No players yet.\n'
@@ -1149,7 +1149,7 @@ bot.onSlashCommand('leaderboard', async (handler, { channelId, spaceId }) => {
     leaderboardText += '🥇 **Top 10 Winners**\n'
     if (topWinners.length > 0) {
         topWinners.forEach((player, index) => {
-            leaderboardText += `${index + 1}. <@${player.userId}> - ${player.wins} wins\n`
+            leaderboardText += `${index + 1}. @${player.userId} - ${player.wins} wins\n`
         })
     } else {
         leaderboardText += 'No winners yet.\n'
@@ -1160,7 +1160,7 @@ bot.onSlashCommand('leaderboard', async (handler, { channelId, spaceId }) => {
     leaderboardText += '⚔️ **Top 10 Kills**\n'
     if (topKills.length > 0) {
         topKills.forEach((player, index) => {
-            leaderboardText += `${index + 1}. <@${player.userId}> - ${player.kills} kills\n`
+            leaderboardText += `${index + 1}. @${player.userId} - ${player.kills} kills\n`
         })
     } else {
         leaderboardText += 'No kills yet.\n'
@@ -1171,7 +1171,7 @@ bot.onSlashCommand('leaderboard', async (handler, { channelId, spaceId }) => {
     leaderboardText += '💀 **Top 10 Deaths**\n'
     if (topDeaths.length > 0) {
         topDeaths.forEach((player, index) => {
-            leaderboardText += `${index + 1}. <@${player.userId}> - ${player.deaths} deaths\n`
+            leaderboardText += `${index + 1}. @${player.userId} - ${player.deaths} deaths\n`
         })
     } else {
         leaderboardText += 'No deaths yet.\n'
@@ -1182,7 +1182,7 @@ bot.onSlashCommand('leaderboard', async (handler, { channelId, spaceId }) => {
     leaderboardText += '✨ **Top 10 Revives**\n'
     if (topRevives.length > 0) {
         topRevives.forEach((player, index) => {
-            leaderboardText += `${index + 1}. <@${player.userId}> - ${player.revives} revives\n`
+            leaderboardText += `${index + 1}. @${player.userId} - ${player.revives} revives\n`
         })
     } else {
         leaderboardText += 'No revives yet.\n'
@@ -1227,7 +1227,7 @@ bot.onSlashCommand('perms', async (handler, { channelId, spaceId, userId, args }
                 `Use \`/perms add [userId]\` to grant permissions.`
             )
         } else {
-            let permissionsList = permissions.map(userId => `- <@${userId}>`).join('\n')
+            let permissionsList = permissions.map(userId => `- @${userId}`).join('\n')
             await handler.sendMessage(
                 channelId,
                 `📋 **Battle Permissions for this Town**\n\n` +
@@ -1265,7 +1265,7 @@ bot.onSlashCommand('perms', async (handler, { channelId, spaceId, userId, args }
             if (getBattlePermissions(spaceId).includes(targetUserId)) {
                 await handler.sendMessage(
                     channelId,
-                    `ℹ️ <@${targetUserId}> already has battle permissions in this town.`
+                    `ℹ️ @${targetUserId} already has battle permissions in this town.`
                 )
                 return
             }
@@ -1274,14 +1274,14 @@ bot.onSlashCommand('perms', async (handler, { channelId, spaceId, userId, args }
             await handler.sendMessage(
                 channelId,
                 `✅ **Permission Granted**\n\n` +
-                `<@${targetUserId}> can now launch and cancel battles in this town.`
+                `@${targetUserId} can now launch and cancel battles in this town.`
             )
         } else if (action === 'remove') {
             // Check if user has permission
             if (!getBattlePermissions(spaceId).includes(targetUserId)) {
                 await handler.sendMessage(
                     channelId,
-                    `ℹ️ <@${targetUserId}> does not have battle permissions in this town.`
+                    `ℹ️ @${targetUserId} does not have battle permissions in this town.`
                 )
                 return
             }
@@ -1290,7 +1290,7 @@ bot.onSlashCommand('perms', async (handler, { channelId, spaceId, userId, args }
             await handler.sendMessage(
                 channelId,
                 `✅ **Permission Removed**\n\n` +
-                `<@${targetUserId}> can no longer launch or cancel battles in this town.`
+                `@${targetUserId} can no longer launch or cancel battles in this town.`
             )
         }
         return
@@ -1310,7 +1310,7 @@ bot.onSlashCommand('help', async (handler, { channelId, spaceId }) => {
     
     const helpMessage = `⚔️ **RUMBLE ROYALE BOT - HELP** ⚔️\n\n` +
         `Welcome to the Battle Royale game bot! Here's how it works:\n\n` +
-        `## 🎮 **How to Play**\n\n` +
+        `🎮 **How to Play**\n\n` +
         `1. **Start a Battle** (Admin only):\n` +
         `   • \`/rumble [private|public] [Theme: christmas]\` - Start a battle without rewards\n` +
         `   • \`/rumble_reward AMOUNT [private|public] [Theme: christmas]\` - Start a battle with TOWNS rewards\n\n` +
@@ -1328,28 +1328,28 @@ bot.onSlashCommand('help', async (handler, { channelId, spaceId }) => {
         `   • Mass events can eliminate multiple players at once\n` +
         `   • Players can be revived during battle\n` +
         `   • Last player standing wins!\n\n` +
-        `## 🏆 **Rewards** (if enabled)\n\n` +
+        `🏆 **Rewards** (if enabled)\n\n` +
         `• **1st Place**: 60% of reward pool\n` +
         `• **2nd Place**: 25% of reward pool\n` +
         `• **3rd Place**: 15% of reward pool\n\n` +
-        `## 📊 **Commands**\n\n` +
+        `📊 **Commands**\n\n` +
         `• \`/rumble\` - Start a battle without rewards\n` +
         `• \`/rumble_reward AMOUNT\` - Start a battle with TOWNS rewards\n` +
         `• \`/cancel\` - Cancel an active battle (admin only)\n` +
         `• \`/leaderboard\` - View top 10 players, winners, kills, deaths, and revives\n` +
         `• \`/perms [add|remove|list] [userId]\` - Manage battle permissions (admin only)\n` +
         `• \`/help\` - Show this help message\n\n` +
-        `## 🎨 **Themes**\n\n` +
+        `🎨 **Themes**\n\n` +
         `• **Default Theme**: Regular battle events\n` +
         `• **Christmas Theme**: Festive battle events (add \`Theme: christmas\` to command)\n\n` +
-        `## ⚙️ **Battle Types**\n\n` +
+        `⚙️ **Battle Types**\n\n` +
         `• **Public Battles**: Cross-town battles, anyone can join from any town\n` +
         `   - Only one public battle can be active at a time\n` +
         `   - Auto-cancels after 10 minutes if not launched\n\n` +
         `• **Private Battles**: Town-only battles\n` +
         `   - One private battle per town\n` +
         `   - Only members of that town can join\n\n` +
-        `## 📈 **Leaderboard Stats**\n\n` +
+        `📈 **Leaderboard Stats**\n\n` +
         `Track your progress with:\n` +
         `• **Battles**: Total battles participated\n` +
         `• **Wins**: Total wins (1st, 2nd, or 3rd place)\n` +

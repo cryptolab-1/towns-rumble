@@ -1,5 +1,5 @@
 import type { BotHandler } from '@towns-protocol/bot'
-import { getActiveBattle, getBattleByChannelId, getBattleByBattleId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, getMassEvents, incrementPlayerStat, getPublicBattleChannels, hasBattlePermission, getUsername, getUsernames, getFakeUserAddress, type BattleState } from './db'
+import { getActiveBattle, getBattleByChannelId, getBattleByBattleId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, getMassEvents, incrementPlayerStat, getPublicBattleChannels, hasBattlePermission, getUsername, getUsernames, getFakeUserAddress, isFakeUser, type BattleState } from './db'
 import { getTipAmountRange } from './ethPrice'
 
 const SWORD_EMOJI = '⚔️'
@@ -551,41 +551,56 @@ async function distributeRewards(bot: any, battle: any): Promise<void> {
         // Get wallet addresses for winners and create transferFrom calls
         // For fake users, use the mapped admin address
         if (battle.winners.length >= 1) {
-            const fakeAddress1 = getFakeUserAddress(battle.winners[0])
-            const firstPlaceWallet = fakeAddress1 
-                ? (fakeAddress1 as `0x${string}`)
-                : await getSmartAccountFromUserId(bot, { userId: battle.winners[0] })
+            let firstPlaceWallet: `0x${string}`
+            if (isFakeUser(battle.winners[0])) {
+                // Fake user - use mapped address or fallback to admin
+                const fakeAddress = getFakeUserAddress(battle.winners[0])
+                firstPlaceWallet = (fakeAddress || adminWallet) as `0x${string}`
+            } else {
+                // Real user - get their address
+                firstPlaceWallet = await getSmartAccountFromUserId(bot, { userId: battle.winners[0] })
+            }
             calls.push({
                 to: tokenAddress,
                 abi: ERC20_ABI,
                 functionName: 'transferFrom',
-                args: [adminWallet as `0x${string}`, firstPlaceWallet as `0x${string}`, firstPlaceReward],
+                args: [adminWallet as `0x${string}`, firstPlaceWallet, firstPlaceReward],
             })
         }
         
         if (battle.winners.length >= 2) {
-            const fakeAddress2 = getFakeUserAddress(battle.winners[1])
-            const secondPlaceWallet = fakeAddress2 
-                ? (fakeAddress2 as `0x${string}`)
-                : await getSmartAccountFromUserId(bot, { userId: battle.winners[1] })
+            let secondPlaceWallet: `0x${string}`
+            if (isFakeUser(battle.winners[1])) {
+                // Fake user - use mapped address or fallback to admin
+                const fakeAddress = getFakeUserAddress(battle.winners[1])
+                secondPlaceWallet = (fakeAddress || adminWallet) as `0x${string}`
+            } else {
+                // Real user - get their address
+                secondPlaceWallet = await getSmartAccountFromUserId(bot, { userId: battle.winners[1] })
+            }
             calls.push({
                 to: tokenAddress,
                 abi: ERC20_ABI,
                 functionName: 'transferFrom',
-                args: [adminWallet as `0x${string}`, secondPlaceWallet as `0x${string}`, secondPlaceReward],
+                args: [adminWallet as `0x${string}`, secondPlaceWallet, secondPlaceReward],
             })
         }
         
         if (battle.winners.length >= 3) {
-            const fakeAddress3 = getFakeUserAddress(battle.winners[2])
-            const thirdPlaceWallet = fakeAddress3 
-                ? (fakeAddress3 as `0x${string}`)
-                : await getSmartAccountFromUserId(bot, { userId: battle.winners[2] })
+            let thirdPlaceWallet: `0x${string}`
+            if (isFakeUser(battle.winners[2])) {
+                // Fake user - use mapped address or fallback to admin
+                const fakeAddress = getFakeUserAddress(battle.winners[2])
+                thirdPlaceWallet = (fakeAddress || adminWallet) as `0x${string}`
+            } else {
+                // Real user - get their address
+                thirdPlaceWallet = await getSmartAccountFromUserId(bot, { userId: battle.winners[2] })
+            }
             calls.push({
                 to: tokenAddress,
                 abi: ERC20_ABI,
                 functionName: 'transferFrom',
-                args: [adminWallet as `0x${string}`, thirdPlaceWallet as `0x${string}`, thirdPlaceReward],
+                args: [adminWallet as `0x${string}`, thirdPlaceWallet, thirdPlaceReward],
             })
         }
     }

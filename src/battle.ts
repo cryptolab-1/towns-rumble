@@ -1,5 +1,5 @@
 import type { BotHandler } from '@towns-protocol/bot'
-import { getActiveBattle, getBattleByChannelId, getBattleByBattleId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, getMassEvents, incrementPlayerStat, getPublicBattleChannels, hasBattlePermission, type BattleState } from './db'
+import { getActiveBattle, getBattleByChannelId, getBattleByBattleId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, getMassEvents, incrementPlayerStat, getPublicBattleChannels, hasBattlePermission, getUsername, getUsernames, type BattleState } from './db'
 import { getTipAmountRange } from './ethPrice'
 
 const SWORD_EMOJI = '⚔️'
@@ -236,7 +236,7 @@ export async function startBattleLoop(
             }
             
             // Format mass event description
-            const victimList = victims.map(v => `💀 ${v}`).join('\n')
+            const victimList = victims.map(v => `💀 ${getUsername(v)}`).join('\n')
             roundDescriptions.push(`**MASS EVENT**\n\n**${eventName}:**\n${victimList}`)
         } else {
             // Regular round with multiple fight events
@@ -262,8 +262,8 @@ export async function startBattleLoop(
                         const reviveTemplate = reviveEvents[Math.floor(Math.random() * reviveEvents.length)]
                         const reviveDescription = reviveTemplate
                             .replace('REVIVE:', '')
-                            .replace('{fighter1}', `${revivedPlayer}`)
-                            .replace('{fighter2}', `${revivedPlayer}`)
+                            .replace('{fighter1}', getUsername(revivedPlayer))
+                            .replace('{fighter2}', getUsername(revivedPlayer))
                         roundDescriptions.push(reviveDescription)
                     }
                 } else {
@@ -285,8 +285,8 @@ export async function startBattleLoop(
                     // Get random regular fight event
                     const eventTemplate = regularEvents[Math.floor(Math.random() * regularEvents.length)]
                     const fightDescription = eventTemplate
-                        .replace('{fighter1}', `${fighter1}`)
-                        .replace('{fighter2}', `${fighter2}`)
+                        .replace('{fighter1}', getUsername(fighter1))
+                        .replace('{fighter2}', getUsername(fighter2))
                     roundDescriptions.push(fightDescription)
                     
                     // Randomly eliminate one fighter (30% chance per fight event)
@@ -367,17 +367,17 @@ export async function startBattleLoop(
         
         if (revivedThisRound.length > 0) {
             if (revivedThisRound.length === 1) {
-                roundMessage += `\n\n✨ ${revivedThisRound[0]} has been revived and rejoined the battle!`
+                roundMessage += `\n\n✨ ${getUsername(revivedThisRound[0])} has been revived and rejoined the battle!`
             } else {
-                roundMessage += `\n\n✨ **Revived:** ${revivedThisRound.map(id => `${id}`).join(', ')}`
+                roundMessage += `\n\n✨ **Revived:** ${getUsernames(revivedThisRound).join(', ')}`
             }
         }
         // Only show eliminated section if it's not a mass event (mass events already show eliminated players)
         if (eliminatedThisRound.length > 0 && !isMassEvent) {
             if (eliminatedThisRound.length === 1) {
-                roundMessage += `\n\n💀 ${eliminatedThisRound[0]} has been eliminated!`
+                roundMessage += `\n\n💀 ${getUsername(eliminatedThisRound[0])} has been eliminated!`
             } else {
-                roundMessage += `\n\n💀 **Eliminated:** ${eliminatedThisRound.map(id => `${id}`).join(', ')}`
+                roundMessage += `\n\n💀 **Eliminated:** ${getUsernames(eliminatedThisRound).join(', ')}`
             }
         }
         
@@ -439,10 +439,10 @@ export async function startBattleLoop(
             } else {
                 // No rewards, just announce winners
                 const winnerText = finalBattle.winners.length === 1
-                    ? `🎉 ${finalBattle.winners[0]} is the winner! 🎉`
+                    ? `🎉 ${getUsername(finalBattle.winners[0])} is the winner! 🎉`
                     : finalBattle.winners.length === 2
-                    ? `🥇 1st: ${finalBattle.winners[0]}\n🥈 2nd: ${finalBattle.winners[1]}`
-                    : `🥇 1st: ${finalBattle.winners[0]}\n🥈 2nd: ${finalBattle.winners[1]}\n🥉 3rd: ${finalBattle.winners[2]}`
+                    ? `🥇 1st: ${getUsername(finalBattle.winners[0])}\n🥈 2nd: ${getUsername(finalBattle.winners[1])}`
+                    : `🥇 1st: ${getUsername(finalBattle.winners[0])}\n🥈 2nd: ${getUsername(finalBattle.winners[1])}\n🥉 3rd: ${getUsername(finalBattle.winners[2])}`
 
                 // For public battles, broadcast to all tracked channels
                 if (finalBattle.isPrivate) {
@@ -594,13 +594,13 @@ async function distributeRewards(bot: any, battle: any): Promise<void> {
             winnerText += `🧪 **TEST BATTLE** - All rewards sent to admin: ${formatTokenAmount(totalReward)} TOWNS\n`
         } else {
             if (battle.winners.length >= 1) {
-                winnerText += `🥇 **1st Place:** ${battle.winners[0]} - ${formatTokenAmount(firstPlaceReward)} TOWNS (60%)\n`
+                winnerText += `🥇 **1st Place:** ${getUsername(battle.winners[0])} - ${formatTokenAmount(firstPlaceReward)} TOWNS (60%)\n`
             }
             if (battle.winners.length >= 2) {
-                winnerText += `🥈 **2nd Place:** ${battle.winners[1]} - ${formatTokenAmount(secondPlaceReward)} TOWNS (25%)\n`
+                winnerText += `🥈 **2nd Place:** ${getUsername(battle.winners[1])} - ${formatTokenAmount(secondPlaceReward)} TOWNS (25%)\n`
             }
             if (battle.winners.length >= 3) {
-                winnerText += `🥉 **3rd Place:** ${battle.winners[2]} - ${formatTokenAmount(thirdPlaceReward)} TOWNS (15%)\n`
+                winnerText += `🥉 **3rd Place:** ${getUsername(battle.winners[2])} - ${formatTokenAmount(thirdPlaceReward)} TOWNS (15%)\n`
             }
         }
         
@@ -644,7 +644,7 @@ async function distributeRewards(bot: any, battle: any): Promise<void> {
     } catch (error) {
         console.error('Error distributing rewards:', error)
         const errorMessage = `❌ Error distributing rewards. Please contact an admin.\n\n` +
-            `Winners: ${battle.winners.map((w: string) => `${w}`).join(', ')}`
+            `Winners: ${getUsernames(battle.winners).join(', ')}`
         
         if (battle.isPrivate) {
             await bot.sendMessage(battle.channelId, errorMessage)

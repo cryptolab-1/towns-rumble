@@ -69,6 +69,7 @@ interface BattleData {
     spaceNames?: Record<string, string> // spaceId -> spaceName
     messageIdToBattleId?: Record<string, string> // messageId (announcement eventId) -> battleId
     battlePermissions?: Record<string, string[]> // spaceId -> userId[] (users with permission to launch/cancel battles in this space)
+    usernames?: Record<string, string> // userId -> username (cache)
 }
 
 const DEFAULT_FIGHT_EVENTS = [
@@ -231,6 +232,9 @@ function readDatabase(): BattleData {
             }
             if (!parsed.spaceNames) {
                 parsed.spaceNames = {}
+            }
+            if (!parsed.usernames) {
+                parsed.usernames = {}
             }
             // Initialize themes if not exists
             if (!parsed.themes) {
@@ -820,6 +824,50 @@ export function getBattlePermissions(spaceId: string): string[] {
         return []
     }
     return [...data.battlePermissions[spaceId]]
+}
+
+/**
+ * Format a user ID to a shortened, readable format
+ */
+export function formatUserId(userId: string): string {
+    if (!userId || !userId.startsWith('0x')) {
+        return userId
+    }
+    // Show first 6 and last 4 characters: 0x1234...5678
+    if (userId.length > 10) {
+        return `${userId.substring(0, 6)}...${userId.substring(userId.length - 4)}`
+    }
+    return userId
+}
+
+/**
+ * Get username from cache, or return formatted user ID
+ */
+export function getUsername(userId: string): string {
+    const data = readDatabase()
+    if (data.usernames && data.usernames[userId]) {
+        return data.usernames[userId]
+    }
+    return formatUserId(userId)
+}
+
+/**
+ * Set username in cache
+ */
+export function setUsername(userId: string, username: string): void {
+    const data = readDatabase()
+    if (!data.usernames) {
+        data.usernames = {}
+    }
+    data.usernames[userId] = username
+    writeDatabase(data)
+}
+
+/**
+ * Get multiple usernames at once
+ */
+export function getUsernames(userIds: string[]): string[] {
+    return userIds.map(id => getUsername(id))
 }
 
 // Initialize database on first load

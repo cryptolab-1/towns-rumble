@@ -1367,6 +1367,7 @@ bot.onSlashCommand('help', async (handler, { channelId, spaceId }) => {
         `🎮 **How to Play**\n\n` +
         `1. **Start a Battle** (Admin only):\n\n` +
         `   • \`/rumble [private|public] [Theme: christmas]\` - Start a battle without rewards\n` +
+        `\n` +
         `   • \`/rumble_reward AMOUNT [private|public] [Theme: christmas]\` - Start a battle with TOWNS rewards\n\n` +
         `2. **Join a Battle**:\n` +
         `   • React with ⚔️ to the battle announcement message to join\n` +

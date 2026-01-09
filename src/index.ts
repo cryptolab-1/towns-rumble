@@ -187,7 +187,7 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
         }
     } else {
         // Private battle - only send to originating channel
-        const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : ''
+        const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : theme === 'zombie' ? '🧟 **Zombie Battle** 🧟\n\n' : ''
         const battleMessage = `⚔️ **BATTLE ROYALE INITIATED!** ⚔️\n\n` +
             `${themeText}` +
             `🔒 **Private Battle** - Only this town can join\n\n` +
@@ -533,7 +533,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
             }
         }
     } else {
-        const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : ''
+        const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : theme === 'zombie' ? '🧟 **Zombie Battle** 🧟\n\n' : ''
         const battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
             `${themeText}` +
             `🔒 **Private Battle** - Only this town can join\n\n` +

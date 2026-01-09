@@ -7,7 +7,7 @@ import {
     handleTip,
     startBattleLoop,
 } from './battle'
-import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActivePublicBattle, setActivePrivateBattle, trackChannelForPublicBattles, getPublicBattleChannels, getBattleIdByMessageId, setMessageIdToBattleId, getBattleByBattleId, getBattleByChannelIdAndAdmin, addBattlePermission, removeBattlePermission, getBattlePermissions, finishBattle, type BattleState } from './db'
+import { getActiveBattle, getBattleByChannelId, getActivePublicBattle, getActivePrivateBattle, setActivePublicBattle, setActivePrivateBattle, trackChannelForPublicBattles, getPublicBattleChannels, getBattleIdByMessageId, setMessageIdToBattleId, getBattleByBattleId, getBattleByChannelIdAndAdmin, addBattlePermission, removeBattlePermission, getBattlePermissions, finishBattle, getUsername, type BattleState } from './db'
 
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,
@@ -63,10 +63,14 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
     if (args && args.length > 0) {
         const privateArg = args.find(arg => arg.toLowerCase() === 'private' || arg.toLowerCase() === 'p')
         const publicArg = args.find(arg => arg.toLowerCase() === 'public' || arg.toLowerCase() === 'pub')
-        // Support both "christmas" and "Theme: christmas" formats
+        // Support both "christmas"/"zombie" and "Theme: christmas"/"Theme: zombie" formats
         const christmasArg = args.find(arg => {
             const lower = arg.toLowerCase()
-            return lower === 'christmas' || lower === 'xmas' || lower.includes('theme:') && lower.includes('christmas')
+            return lower === 'christmas' || lower === 'xmas' || (lower.includes('theme:') && lower.includes('christmas'))
+        })
+        const zombieArg = args.find(arg => {
+            const lower = arg.toLowerCase()
+            return lower === 'zombie' || lower === 'zombies' || (lower.includes('theme:') && lower.includes('zombie'))
         })
         
         if (privateArg) {
@@ -77,6 +81,8 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
         
         if (christmasArg) {
             theme = 'christmas'
+        } else if (zombieArg) {
+            theme = 'zombie'
         }
     }
 
@@ -138,7 +144,7 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
                 const isOriginatingTown = channel.spaceId === spaceId
                 const locationText = isOriginatingTown ? 'initiated in this town' : 'initiated from another town'
                 
-                const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : ''
+                const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : theme === 'zombie' ? '🧟 **Zombie Battle** 🧟\n\n' : ''
                 let battleMessage: string
                 if (isOriginatingTown) {
                     // Originating town gets full message with warnings
@@ -259,10 +265,14 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
     let theme = 'default' // Default theme
     const privateArg = args.find(arg => arg.toLowerCase() === 'private' || arg.toLowerCase() === 'p')
     const publicArg = args.find(arg => arg.toLowerCase() === 'public' || arg.toLowerCase() === 'pub')
-    // Support both "christmas" and "Theme: christmas" formats
+    // Support both "christmas"/"zombie" and "Theme: christmas"/"Theme: zombie" formats
     const christmasArg = args.find(arg => {
         const lower = arg.toLowerCase()
         return lower === 'christmas' || lower === 'xmas' || (lower.includes('theme:') && lower.includes('christmas'))
+    })
+    const zombieArg = args.find(arg => {
+        const lower = arg.toLowerCase()
+        return lower === 'zombie' || lower === 'zombies' || (lower.includes('theme:') && lower.includes('zombie'))
     })
     
     if (privateArg) {
@@ -273,6 +283,8 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
     
     if (christmasArg) {
         theme = 'christmas'
+    } else if (zombieArg) {
+        theme = 'zombie'
     }
 
     // Check for active battles based on type
@@ -384,7 +396,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                         const locationText = isOriginatingTown ? 'initiated in this town' : 'initiated from another town'
                         
                         let battleMessage: string
-                        const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : ''
+                        const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : theme === 'zombie' ? '🧟 **Zombie Battle** 🧟\n\n' : ''
                         if (isOriginatingTown) {
                             // Originating town gets full message with warnings
                             battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
@@ -430,7 +442,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                 // Set up auto-cancel timer for public battles requiring approval
                 setupAutoCancelTimer(battleId)
             } else {
-                const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : ''
+                const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : theme === 'zombie' ? '🧟 **Zombie Battle** 🧟\n\n' : ''
                 const battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
                     `${themeText}` +
                     `🔒 **Private Battle** - Only this town can join\n\n` +
@@ -481,7 +493,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                 const locationText = isOriginatingTown ? 'initiated in this town' : 'initiated from another town'
                 
                 let battleMessage: string
-                const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : ''
+                const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : theme === 'zombie' ? '🧟 **Zombie Battle** 🧟\n\n' : ''
                 if (isOriginatingTown) {
                     // Originating town gets full message with warnings
                     battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
@@ -801,7 +813,7 @@ bot.onReaction(async (handler, { reaction, channelId, userId, spaceId, messageId
             const finalBattle = freshBattle || battle
 
             const battleType = battle.isPrivate ? '🔒 Private Battle' : '🌐 Public Battle'
-            const joinMessage = `@${userId} has joined the ${battleType}! ⚔️ (${finalBattle.participants.length} participants)`
+            const joinMessage = `${getUsername(userId)} has joined the ${battleType}! ⚔️ (${finalBattle.participants.length} participants)`
 
             if (battle.isPrivate) {
                 // Private battle – only notify in the current town/channel
@@ -1366,9 +1378,9 @@ bot.onSlashCommand('help', async (handler, { channelId, spaceId }) => {
         `Welcome to the Battle Royale game bot! Here's how it works:\n\n` +
         `🎮 **How to Play**\n\n` +
         `1. **Start a Battle** (Admin only):\n\n` +
-        `   • \`/rumble [private|public] [Theme: christmas]\` - Start a battle without rewards\n` +
+        `   • \`/rumble [private|public] [Theme: christmas|zombie]\` - Start a battle without rewards\n` +
         `\n` +
-        `   • \`/rumble_reward AMOUNT [private|public] [Theme: christmas]\` - Start a battle with TOWNS rewards\n\n` +
+        `   • \`/rumble_reward AMOUNT [private|public] [Theme: christmas|zombie]\` - Start a battle with TOWNS rewards\n\n` +
         `2. **Join a Battle**:\n` +
         `   • React with ⚔️ to the battle announcement message to join\n` +
         `   • Anyone can join public battles from any town\n` +
@@ -1396,7 +1408,8 @@ bot.onSlashCommand('help', async (handler, { channelId, spaceId }) => {
         `• \`/help\` - Show this help message\n\n` +
         `🎨 **Themes**\n\n` +
         `• **Default Theme**: Regular battle events\n` +
-        `• **Christmas Theme**: Festive battle events (add \`Theme: christmas\` to command)\n\n` +
+        `• **Christmas Theme**: Festive battle events (add \`Theme: christmas\` to command)\n` +
+        `• **Zombie Theme**: Apocalyptic zombie battle events (add \`Theme: zombie\` to command)\n\n` +
         `⚙️ **Battle Types**\n\n` +
         `• **Public Battles**: Cross-town battles, anyone can join from any town\n` +
         `   - Only one public battle can be active at a time\n` +

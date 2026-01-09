@@ -36,7 +36,7 @@ export interface BattleState {
     tipAmount: string // Wei as string
     isPrivate: boolean // If true, only participants from the original space can join
     isTest: boolean // If true, this is a test battle and rewards go to admin
-    theme?: string // Battle theme: 'default' or 'christmas'
+    theme?: string // Battle theme: 'default', 'christmas', or 'zombie'
     threadId?: string // Thread root eventId for battle messages (tip that started the battle)
     announcementEventId?: string // EventId of the announcement message (for reactions)
     createdAt: number
@@ -213,6 +213,76 @@ const CHRISTMAS_FIGHT_EVENTS = [
     'MASS_EVENT:North Pole Earthquake',
 ]
 
+const ZOMBIE_FIGHT_EVENTS = [
+    // Regular fight events (40 total) - Zombie themed
+    '{fighter1} lunges at {fighter2} with a zombie bite!',
+    '{fighter1} dodges {fighter2}\'s infected claw and counters with a headshot!',
+    '{fighter1} and {fighter2} clash in a brutal zombie brawl!',
+    '{fighter1} parries {fighter2}\'s attack and lands a critical blow with a baseball bat!',
+    '{fighter1} uses a spinning attack with a chainsaw against {fighter2}!',
+    '{fighter2} blocks {fighter1}\'s strike with a riot shield and retaliates!',
+    '{fighter1} delivers a devastating combo with a machete on {fighter2}!',
+    '{fighter1} and {fighter2} engage in an intense zombie apocalypse duel!',
+    '{fighter1} strikes {fighter2} with a crossbow bolt!',
+    '{fighter2} evades {fighter1}\'s attack and strikes back with a crowbar!',
+    '{fighter1} unleashes a powerful finisher with a shotgun blast on {fighter2}!',
+    '{fighter1} and {fighter2} trade blows in a desperate survival fight!',
+    '{fighter1} performs a backflip and lands a kick with a combat boot on {fighter2}!',
+    '{fighter2} sidesteps {fighter1}\'s charge and delivers a roundhouse with a steel pipe!',
+    '{fighter1} throws a series of jabs with brass knuckles at {fighter2}!',
+    '{fighter2} catches {fighter1}\'s arm and executes a throw using a grappling hook!',
+    '{fighter1} leaps into the air and comes down with a powerful strike using a fire axe!',
+    '{fighter2} uses a defensive stance with a trash can lid and counters {fighter1}\'s advance!',
+    '{fighter1} feints left then strikes right with a knife, catching {fighter2} off guard!',
+    '{fighter2} blocks with a car door shield and pushes {fighter1} back!',
+    '{fighter1} channels energy and releases a shockwave of zombie guts at {fighter2}!',
+    '{fighter2} rolls under {fighter1}\'s attack and sweeps their legs with a barbed wire bat!',
+    '{fighter1} uses a whirlwind technique with a sledgehammer against {fighter2}!',
+    '{fighter2} deflects {fighter1}\'s blade with precision using a metal pipe!',
+    '{fighter1} performs a triple strike combo with a katana on {fighter2}!',
+    '{fighter2} uses a counter-attack technique with a nail-studded board on {fighter1}!',
+    '{fighter1} charges forward with a battle cry and a chainsaw!',
+    '{fighter2} meets {fighter1}\'s charge head-on with equal force using a fire extinguisher!',
+    '{fighter1} uses a feint to create an opening with a broken bottle!',
+    '{fighter2} reads {fighter1}\'s movements and anticipates the attack with a tire iron!',
+    '{fighter1} unleashes a flurry of strikes with a combat knife!',
+    '{fighter2} weaves through {fighter1}\'s attacks with agility and a machete!',
+    '{fighter1} delivers a crushing overhead strike with a sledgehammer!',
+    '{fighter2} deflects the blow and spins into a counter with a baseball bat!',
+    '{fighter1} uses a grappling technique with barbed wire on {fighter2}!',
+    '{fighter2} breaks free and creates distance using a Molotov cocktail!',
+    '{fighter1} throws a smoke bomb and strikes from the shadows with a silenced pistol!',
+    '{fighter2} clears the smoke and finds {fighter1} with a flashlight!',
+    '{fighter1} performs a spinning kick that connects with a combat boot!',
+    '{fighter2} recovers quickly and launches a counter-offensive with a crowbar!',
+    '{fighter1} uses a combination of strikes and kicks with a tire iron!',
+    '{fighter2} blocks and parries with expert timing using a riot shield!',
+    
+    // Revive events (10 total) - Zombie themed
+    'REVIVE:{fighter1} finds a medkit and is revived back into the battle!',
+    'REVIVE:{fighter2} gets back up with renewed determination and zombie resistance!',
+    'REVIVE:{fighter1} is resurrected by a mysterious cure!',
+    'REVIVE:{fighter2} refuses to stay down and rejoins the fight with adrenaline!',
+    'REVIVE:{fighter1} uses a stimpack and returns to battle!',
+    'REVIVE:{fighter2} is healed by a survivor medic and continues fighting!',
+    'REVIVE:{fighter1} finds inner strength and gets back up from the zombie horde!',
+    'REVIVE:{fighter2} is saved by a fellow survivor and rejoins!',
+    'REVIVE:{fighter1} uses a second wind ability with a health pack to return!',
+    'REVIVE:{fighter2} regenerates and comes back stronger with zombie immunity!',
+    
+    // Mass events - Zombie Apocalypse Disasters (10 total)
+    'MASS_EVENT:Zombie Horde Swarm',
+    'MASS_EVENT:Infected Outbreak',
+    'MASS_EVENT:Zombie Virus Cloud',
+    'MASS_EVENT:Undead Stampede',
+    'MASS_EVENT:Plague Wave',
+    'MASS_EVENT:Zombie Ambush',
+    'MASS_EVENT:Contamination Zone',
+    'MASS_EVENT:Undead Army Attack',
+    'MASS_EVENT:Zombie Apocalypse',
+    'MASS_EVENT:Infection Spread',
+]
+
 function readDatabase(): BattleData {
     if (existsSync(dbPath)) {
         try {
@@ -245,14 +315,18 @@ function readDatabase(): BattleData {
                 parsed.themes = {
                     default: DEFAULT_FIGHT_EVENTS,
                     christmas: CHRISTMAS_FIGHT_EVENTS,
+                    zombie: ZOMBIE_FIGHT_EVENTS,
                 }
             } else {
-                // Ensure both themes exist
+                // Ensure all themes exist
                 if (!parsed.themes.default) {
                     parsed.themes.default = DEFAULT_FIGHT_EVENTS
                 }
                 if (!parsed.themes.christmas) {
                     parsed.themes.christmas = CHRISTMAS_FIGHT_EVENTS
+                }
+                if (!parsed.themes.zombie) {
+                    parsed.themes.zombie = ZOMBIE_FIGHT_EVENTS
                 }
             }
             // Migrate old structure to new structure
@@ -274,7 +348,7 @@ function readDatabase(): BattleData {
             return { 
                 pastBattles: [], 
                 fightEvents: DEFAULT_FIGHT_EVENTS, 
-                themes: { default: DEFAULT_FIGHT_EVENTS, christmas: CHRISTMAS_FIGHT_EVENTS },
+                themes: { default: DEFAULT_FIGHT_EVENTS, christmas: CHRISTMAS_FIGHT_EVENTS, zombie: ZOMBIE_FIGHT_EVENTS },
                 playerStats: {}, 
                 activeBattles: { private: {} }, 
                 publicBattleChannels: [], 
@@ -579,25 +653,40 @@ export function getFightEvents(): string[] {
 
 export function getRegularFightEvents(theme: string = 'default'): string[] {
     const data = readDatabase()
-    const events = theme === 'christmas' && data.themes?.christmas 
-        ? data.themes.christmas 
-        : (data.themes?.default || data.fightEvents || DEFAULT_FIGHT_EVENTS)
+    let events: string[]
+    if (theme === 'christmas' && data.themes?.christmas) {
+        events = data.themes.christmas
+    } else if (theme === 'zombie' && data.themes?.zombie) {
+        events = data.themes.zombie
+    } else {
+        events = data.themes?.default || data.fightEvents || DEFAULT_FIGHT_EVENTS
+    }
     return events.filter(event => !event.startsWith('REVIVE:') && !event.startsWith('MASS_EVENT:'))
 }
 
 export function getReviveEvents(theme: string = 'default'): string[] {
     const data = readDatabase()
-    const events = theme === 'christmas' && data.themes?.christmas 
-        ? data.themes.christmas 
-        : (data.themes?.default || data.fightEvents || DEFAULT_FIGHT_EVENTS)
+    let events: string[]
+    if (theme === 'christmas' && data.themes?.christmas) {
+        events = data.themes.christmas
+    } else if (theme === 'zombie' && data.themes?.zombie) {
+        events = data.themes.zombie
+    } else {
+        events = data.themes?.default || data.fightEvents || DEFAULT_FIGHT_EVENTS
+    }
     return events.filter(event => event.startsWith('REVIVE:'))
 }
 
 export function getMassEvents(theme: string = 'default'): string[] {
     const data = readDatabase()
-    const events = theme === 'christmas' && data.themes?.christmas 
-        ? data.themes.christmas 
-        : (data.themes?.default || data.fightEvents || DEFAULT_FIGHT_EVENTS)
+    let events: string[]
+    if (theme === 'christmas' && data.themes?.christmas) {
+        events = data.themes.christmas
+    } else if (theme === 'zombie' && data.themes?.zombie) {
+        events = data.themes.zombie
+    } else {
+        events = data.themes?.default || data.fightEvents || DEFAULT_FIGHT_EVENTS
+    }
     return events.filter(event => event.startsWith('MASS_EVENT:'))
 }
 

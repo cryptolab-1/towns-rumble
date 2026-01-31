@@ -62,8 +62,6 @@ interface BattleData {
     pastBattles: BattleState[]
     fightEvents: string[] // Default theme events
     themes?: Record<string, string[]> // theme name -> events array
-    lastEthPrice?: number
-    lastEthPriceTimestamp?: number
     playerStats: Record<string, PlayerStats> // userId -> stats
     publicBattleChannels?: Array<{ channelId: string; spaceId: string; spaceName?: string; announcementEventId?: string }> // Channels to announce public battles, with announcement message eventId
     spaceNames?: Record<string, string> // spaceId -> spaceName
@@ -696,18 +694,6 @@ export function addFightEvent(event: string): void {
         data.fightEvents.push(event)
         writeDatabase(data)
     }
-}
-
-export function setLastEthPrice(price: number): void {
-    const data = readDatabase()
-    data.lastEthPrice = price
-    data.lastEthPriceTimestamp = Date.now()
-    writeDatabase(data)
-}
-
-export function getLastEthPrice(): number | undefined {
-    const data = readDatabase()
-    return data.lastEthPrice
 }
 
 /**

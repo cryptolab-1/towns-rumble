@@ -154,7 +154,7 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
                         `React with ⚔️ to join the battle!\n\n` +
                         `⏰ **You have 10 minutes to join and launch the Battle or it will auto-cancel**\n\n` +
                         `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
-                        `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
+                        `Once you're ready, tip me **1 USDC** to launch the battle!`
                 } else {
                     // Other towns get simplified message
                     battleMessage = `⚔️ **BATTLE ROYALE INITIATED!** ⚔️\n\n` +
@@ -193,7 +193,7 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
             `🔒 **Private Battle** - Only this town can join\n\n` +
             `React with ⚔️ to join the battle!\n\n` +
             `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
-            `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
+            `Once you're ready, tip me **1 USDC** to launch the battle!`
         
         const sentMessage = await handler.sendMessage(channelId, battleMessage)
         // Store messageId -> battleId mapping for reactions
@@ -408,7 +408,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                                 `⚠️ **Token Approval Required**\n` +
                                 `Please approve the transaction in the dialog above to allow the bot to distribute rewards.\n\n` +
                                 `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
-                                `Once approved, tip me **$1 USD worth of ETH** to launch the battle!`
+                                `Once approved, tip me **1 USDC** to launch the battle!`
                         } else {
                             // Other towns get simplified message, but with reward pool
                             battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
@@ -451,7 +451,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                     `⚠️ **Token Approval Required**\n` +
                     `Please approve the transaction in the dialog above to allow the bot to distribute rewards.\n\n` +
                     `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
-                    `Once approved, tip me **$1 USD worth of ETH** to launch the battle!`
+                    `Once approved, tip me **1 USDC** to launch the battle!`
                 
                 const sentMessage = await handler.sendMessage(channelId, battleMessage)
                 // Store messageId -> battleId mapping for reactions
@@ -504,7 +504,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                         `💰 **Reward Pool:** ${formatTokenAmount(requiredAmount)} TOWNS\n\n` +
                         `⚠️ **WARNING:** Be sure to have enough TOWNS before launching the Battle!\n\n` +
                         `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
-                        `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
+                        `Once you're ready, tip me **1 USDC** to launch the battle!`
                 } else {
                     // Other towns get simplified message, but with reward pool
                     battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
@@ -541,7 +541,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
             `💰 **Reward Pool:** ${formatTokenAmount(requiredAmount)} TOWNS\n\n` +
             `⚠️ **WARNING:** Be sure to have enough TOWNS before launching the Battle!\n\n` +
             `⚠️ **WARNING:** You need a minimum of **2 players** before tipping. Game will not launch and tip will be lost if there are less than 2 participants!\n\n` +
-            `Once you're ready, tip me **$1 USD worth of ETH** to launch the battle!`
+            `Once you're ready, tip me **1 USDC** to launch the battle!`
         
         const sentMessage = await handler.sendMessage(channelId, battleMessage)
         // Store messageId -> battleId mapping for reactions
@@ -726,7 +726,7 @@ bot.onInteractionResponse(async (handler, { response, channelId, userId }) => {
                                 `✅ **Token Approval Confirmed!**\n\n` +
                                 `Transaction: \`${txResponse.txHash}\`\n\n` +
                                 `⚠️ **WARNING:** Be sure to have enough TOWNS (${formatTokenAmount(requiredAmount)} TOWNS) before launching the Battle!\n\n` +
-                                `You can now tip me **$1 USD worth of ETH** to launch the battle!`
+                                `You can now tip me **1 USDC** to launch the battle!`
                             )
                         } else {
                             await handler.sendMessage(
@@ -741,7 +741,7 @@ bot.onInteractionResponse(async (handler, { response, channelId, userId }) => {
                         await handler.sendMessage(
                             channelId,
                             `⚠️ Transaction submitted: \`${txResponse.txHash}\`\n\n` +
-                            `Please wait for confirmation, then tip **$1 USD worth of ETH** to launch the battle.`
+                            `Please wait for confirmation, then tip **1 USDC** to launch the battle.`
                         )
                     }
                 } else {
@@ -1027,7 +1027,7 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
                 setActiveBattle(battle)
                 await handler.sendMessage(
                     channelId,
-                    `✅ Token approval confirmed! Now tip me **$1 USD worth of ETH** to launch the battle!`
+                    `✅ Token approval confirmed! Now tip me **1 USDC** to launch the battle!`
                 )
                 return
             } else {
@@ -1151,33 +1151,11 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
     } else {
         // Check if this was a battle tip attempt that failed
         if (battle.status === 'pending_tip' && userId === battle.adminId) {
-            try {
-                const { getTipAmountRange } = await import('./ethPrice')
-                const { min, max, target } = await getTipAmountRange()
-                const minEth = Number(min) / 1e18
-                const maxEth = Number(max) / 1e18
-                const targetEth = Number(target) / 1e18
-                const receivedEth = Number(amount) / 1e18
-                
-                await handler.sendMessage(
-                    channelId,
-                    `❌ Tip amount incorrect!\n\n` +
-                    `Expected: ~$$1 USD in ETH (${targetEth.toFixed(6)} ETH)\n` +
-                    `Accepted range: ${minEth.toFixed(6)} - ${maxEth.toFixed(6)} ETH (10% slippage)\n` +
-                    `Received: ${receivedEth.toFixed(6)} ETH\n\n` +
-                    `Please tip exactly $1 USD worth of ETH to start the battle.`
-                )
-            } catch (error) {
-                console.error('Error getting tip amount range for error message:', error)
-                const receivedEth = Number(amount) / 1e18
-    await handler.sendMessage(
-        channelId,
-                    `❌ Tip amount incorrect!\n\n` +
-                    `Received: ${receivedEth.toFixed(6)} ETH\n\n` +
-                    `Please tip exactly $1 USD worth of ETH to start the battle.\n` +
-                    `(Unable to fetch current ETH price - please try again later)`
-                )
-            }
+            await handler.sendMessage(
+                channelId,
+                `❌ Tip amount incorrect!\n\n` +
+                `Please tip exactly **1 USDC** to launch the battle.`
+            )
         }
     }
 })
@@ -1386,7 +1364,7 @@ bot.onSlashCommand('help', async (handler, { channelId, spaceId }) => {
         `   • Anyone can join public battles from any town\n` +
         `   • Private battles are only for your town\n\n` +
         `3. **Launch the Battle**:\n` +
-        `   • Admin must tip **$1 USD worth of ETH** to the bot to start\n` +
+        `   • Admin must tip **1 USDC** to the bot to start\n` +
         `   • For reward battles, token approval is required first\n` +
         `   • ⚠️ **Minimum 2 players required** to launch\n\n` +
         `4. **Battle Mechanics**:\n` +

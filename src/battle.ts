@@ -1,6 +1,8 @@
 import type { BotHandler } from '@towns-protocol/bot'
 import { getActiveBattle, getBattleByChannelId, getBattleByBattleId, getActivePublicBattle, getActivePrivateBattle, setActiveBattle, setActivePublicBattle, setActivePrivateBattle, finishBattle, addParticipant, getRegularFightEvents, getReviveEvents, getMassEvents, incrementPlayerStat, getPublicBattleChannels, hasBattlePermission, getUsername, getUsernames, getFakeUserAddress, isFakeUser, type BattleState } from './db'
-import { getTipAmountRange } from './ethPrice'
+
+// 1 USDC (6 decimals)
+const ONE_USDC = 1_000_000n
 
 const SWORD_EMOJI = '⚔️'
 const SWORD_EMOJI_NAME = 'crossed_swords' // Towns Protocol sends reactions as string identifiers
@@ -136,17 +138,8 @@ export async function handleTip(
     if (currentBattle.status !== 'pending_tip') return false
     if (senderId !== currentBattle.adminId) return false
     
-    // Get the acceptable tip amount range ($1 USD with 10% slippage)
-    try {
-        const { min, max } = await getTipAmountRange()
-        
-        // Check if tip amount is within acceptable range (90% to 110% of $1 USD)
-        if (amount < min || amount > max) {
-            return false
-        }
-    } catch (error) {
-        console.error('Error getting tip amount range:', error)
-        // If we can't get ETH price, reject the tip
+    // Towns uses USDC for tips; admin must tip exactly 1 USDC to launch
+    if (amount !== ONE_USDC) {
         return false
     }
     

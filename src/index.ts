@@ -148,7 +148,7 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
                 let battleMessage: string
                 if (isOriginatingTown) {
                     // Originating town gets full message with warnings
-                    battleMessage = `⚔️ **BATTLE ROYALE INITIATED!** ⚔️\n\n` +
+                    battleMessage = `@channel\n\n⚔️ **BATTLE ROYALE INITIATED!** ⚔️\n\n` +
                         `${themeText}` +
                         `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
                         `React with ⚔️ to join the battle!\n\n` +
@@ -157,7 +157,7 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
                         `Once you're ready, tip me **1 USDC** to launch the battle!`
                 } else {
                     // Other towns get simplified message
-                    battleMessage = `⚔️ **BATTLE ROYALE INITIATED!** ⚔️\n\n` +
+                    battleMessage = `@channel\n\n⚔️ **BATTLE ROYALE INITIATED!** ⚔️\n\n` +
                         `${themeText}` +
                         `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
                         `React with ⚔️ to join the battle!\n\n` +
@@ -188,7 +188,7 @@ bot.onSlashCommand('rumble', async (handler, { channelId, spaceId, userId, args 
     } else {
         // Private battle - only send to originating channel
         const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : theme === 'zombie' ? '🧟 **Zombie Battle** 🧟\n\n' : ''
-        const battleMessage = `⚔️ **BATTLE ROYALE INITIATED!** ⚔️\n\n` +
+        const battleMessage = `@channel\n\n⚔️ **BATTLE ROYALE INITIATED!** ⚔️\n\n` +
             `${themeText}` +
             `🔒 **Private Battle** - Only this town can join\n\n` +
             `React with ⚔️ to join the battle!\n\n` +
@@ -399,7 +399,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                         const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : theme === 'zombie' ? '🧟 **Zombie Battle** 🧟\n\n' : ''
                         if (isOriginatingTown) {
                             // Originating town gets full message with warnings
-                            battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
+                            battleMessage = `@channel\n\n⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
                                 `${themeText}` +
                                 `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
                                 `React with ⚔️ to join the battle!\n\n` +
@@ -411,7 +411,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                                 `Once approved, tip me **1 USDC** to launch the battle!`
                         } else {
                             // Other towns get simplified message, but with reward pool
-                            battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
+                            battleMessage = `@channel\n\n⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
                                 `${themeText}` +
                                 `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
                                 `React with ⚔️ to join the battle!\n\n` +
@@ -443,7 +443,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                 setupAutoCancelTimer(battleId)
             } else {
                 const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : theme === 'zombie' ? '🧟 **Zombie Battle** 🧟\n\n' : ''
-                const battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
+                const battleMessage = `@channel\n\n⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
                     `${themeText}` +
                     `🔒 **Private Battle** - Only this town can join\n\n` +
                     `React with ⚔️ to join the battle!\n\n` +
@@ -496,7 +496,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                 const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : theme === 'zombie' ? '🧟 **Zombie Battle** 🧟\n\n' : ''
                 if (isOriginatingTown) {
                     // Originating town gets full message with warnings
-                    battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
+                    battleMessage = `@channel\n\n⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
                         `${themeText}` +
                         `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
                         `React with ⚔️ to join the battle!\n\n` +
@@ -507,7 +507,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
                         `Once you're ready, tip me **1 USDC** to launch the battle!`
                 } else {
                     // Other towns get simplified message, but with reward pool
-                    battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
+                    battleMessage = `@channel\n\n⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
                         `${themeText}` +
                         `🌐 **Public Battle**, ${locationText} - Cross-town! Any town with the bot can join\n\n` +
                         `React with ⚔️ to join the battle!\n\n` +
@@ -534,7 +534,7 @@ bot.onSlashCommand('rumble_reward', async (handler, { channelId, spaceId, userId
         }
     } else {
         const themeText = theme === 'christmas' ? '🎄 **Christmas Battle** 🎄\n\n' : theme === 'zombie' ? '🧟 **Zombie Battle** 🧟\n\n' : ''
-        const battleMessage = `⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
+        const battleMessage = `@channel\n\n⚔️ **BATTLE ROYALE WITH REWARDS INITIATED!** ⚔️\n\n` +
             `${themeText}` +
             `🔒 **Private Battle** - Only this town can join\n\n` +
             `React with ⚔️ to join the battle!\n` +
@@ -1110,7 +1110,7 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
             setActiveBattle(currentBattle)
         }
 
-        const battleStartMessage = `@channel\n\n⚔️ **BATTLE STARTING!** ⚔️\n\n` +
+        const battleStartMessage = `⚔️ **BATTLE STARTING!** ⚔️\n\n` +
             `**${currentBattle.participants.length} fighters** are entering the arena!\n` +
             (currentBattle.rewardAmount ? `💰 **Reward Pool:** ${(await import('./token')).formatTokenAmount(BigInt(currentBattle.rewardAmount))} TOWNS\n` : '') +
             `\nLet the battle begin! 🗡️`

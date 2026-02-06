@@ -551,7 +551,7 @@ async function distributeRewards(bot: any, battle: any): Promise<void> {
                 firstPlaceWallet = (fakeAddress || adminWallet) as `0x${string}`
             } else {
                 // Real user - get their address
-                firstPlaceWallet = await getSmartAccountFromUserId(bot, { userId: battle.winners[0] })
+                firstPlaceWallet = (await getSmartAccountFromUserId(bot, { userId: battle.winners[0] })) as `0x${string}`
             }
             calls.push({
                 to: tokenAddress,
@@ -569,7 +569,7 @@ async function distributeRewards(bot: any, battle: any): Promise<void> {
                 secondPlaceWallet = (fakeAddress || adminWallet) as `0x${string}`
             } else {
                 // Real user - get their address
-                secondPlaceWallet = await getSmartAccountFromUserId(bot, { userId: battle.winners[1] })
+                secondPlaceWallet = (await getSmartAccountFromUserId(bot, { userId: battle.winners[1] })) as `0x${string}`
             }
             calls.push({
                 to: tokenAddress,
@@ -587,7 +587,7 @@ async function distributeRewards(bot: any, battle: any): Promise<void> {
                 thirdPlaceWallet = (fakeAddress || adminWallet) as `0x${string}`
             } else {
                 // Real user - get their address
-                thirdPlaceWallet = await getSmartAccountFromUserId(bot, { userId: battle.winners[2] })
+                thirdPlaceWallet = (await getSmartAccountFromUserId(bot, { userId: battle.winners[2] })) as `0x${string}`
             }
             calls.push({
                 to: tokenAddress,
@@ -603,6 +603,7 @@ async function distributeRewards(bot: any, battle: any): Promise<void> {
         const txHash = await execute(bot.viem, {
             address: bot.appAddress,
             account: bot.viem.account,
+            chain: bot.viem.chain,
             calls,
         })
         

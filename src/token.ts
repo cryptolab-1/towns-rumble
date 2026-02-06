@@ -168,6 +168,7 @@ export async function distributeTokenRewards(
         const hash = await execute(viem, {
             address: bot.appAddress,
             account: bot.viem.account,
+            chain: bot.viem.chain,
             calls,
         })
 

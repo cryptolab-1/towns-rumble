@@ -1110,7 +1110,7 @@ bot.onTip(async (handler, { userId, senderAddress, receiverAddress, amount, chan
             setActiveBattle(currentBattle)
         }
 
-        const battleStartMessage = `⚔️ **BATTLE STARTING!** ⚔️\n\n` +
+        const battleStartMessage = `@channel\n\n⚔️ **BATTLE STARTING!** ⚔️\n\n` +
             `**${currentBattle.participants.length} fighters** are entering the arena!\n` +
             (currentBattle.rewardAmount ? `💰 **Reward Pool:** ${(await import('./token')).formatTokenAmount(BigInt(currentBattle.rewardAmount))} TOWNS\n` : '') +
             `\nLet the battle begin! 🗡️`
